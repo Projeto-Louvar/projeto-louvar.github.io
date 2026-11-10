@@ -34,6 +34,11 @@ describe('router', () => {
     expect(parseHash('')).toEqual({ name: 'home' });
     expect(parseHash('#/qualquer')).toEqual({ name: 'home' });
   });
+  it('hash malformado não quebra a página', () => {
+    expect(() => parseHash('#/c/%')).not.toThrow();
+    expect(parseHash('#/c/%')).toEqual({ name: 'home' });
+    expect(() => parseHash('#/busca?q=%E0%A4%A')).not.toThrow();
+  });
 });
 
 describe('search', () => {
