@@ -45,6 +45,7 @@ jobs:
             ok=0
             for i in 1 2 3; do
               if git pull --rebase origin main && git push origin HEAD:main; then ok=1; break; fi
+              git rebase --abort || true
               sleep 10
             done
             [ "$ok" = 1 ] || { echo "Falha ao publicar o catálogo"; exit 1; }
@@ -52,7 +53,10 @@ jobs:
 
   deploy:
     needs: sync
-    if: ${{ !cancelled() && (needs.sync.result == 'success' || needs.sync.result == 'skipped') }}
+    if: ${{ !cancelled() }}
+    concurrency:
+      group: pages
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     permissions:
       contents: read

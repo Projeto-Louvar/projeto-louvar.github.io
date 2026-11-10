@@ -44,6 +44,10 @@ async function main(): Promise<void> {
   let skipped = 0;
   let fatal = false;
   const writeCatalog = (c: Catalog) => {
+    if (prev) {
+      const strip = (x: Catalog) => JSON.stringify({ ...x, generatedAt: '' });
+      if (strip(prev) === strip(c)) c.generatedAt = prev.generatedAt;
+    }
     writeFileSync(`${catalogPath}.tmp`, JSON.stringify(c));
     renameSync(`${catalogPath}.tmp`, catalogPath);
   };
@@ -85,9 +89,9 @@ async function main(): Promise<void> {
     const names = uniqueEntryNames(tracks.map((t) => t.fileName));
     const entries = tracks.map((t, i) => ({ name: names[i], url: t.url, size: t.size }));
     const parts = splitIntoParts(entries, MAX_ZIP_BYTES);
+    const urls: string[] = [];
     try {
       const rel = await gh.ensure(z.tag, col.name);
-      const urls: string[] = [];
       for (let p = 0; p < parts.length; p++) {
         if (outOfTime()) throw new Error('sem tempo; zip abandonado');
         const name = zipAssetName(`${z.baseName}-${z.zipKey.slice(0, 8)}`, p + 1, parts.length);
@@ -104,6 +108,7 @@ async function main(): Promise<void> {
       col.zipUrls = urls;
       col.zipKey = z.zipKey;
     } catch (e) {
+      replacedZips.push(...urls); // partes já enviadas ficam órfãs: vão para a exclusão adiada
       failures.push(`zip ${col.name}: ${errMsg(e)}`);
       if (isFatal(e)) fatal = true;
     }
@@ -131,10 +136,6 @@ async function main(): Promise<void> {
   if (pending.length) catalog.pendingDeletes = pending;
   else delete catalog.pendingDeletes;
 
-  if (prev) {
-    const strip = (c: Catalog) => JSON.stringify({ ...c, generatedAt: '' });
-    if (strip(prev) === strip(catalog)) catalog.generatedAt = prev.generatedAt;
-  }
   writeCatalog(catalog);
   rmSync(tmp, { recursive: true, force: true });
 
