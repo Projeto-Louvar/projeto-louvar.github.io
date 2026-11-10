@@ -1,0 +1,33 @@
+{
+  "name": "louvores-site",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "typecheck": "tsc",
+    "check": "tsc && vitest run",
+    "e2e": "playwright test",
+    "sync": "tsx sync/main.ts",
+    "sample": "tsx scripts/make-sample.ts",
+    "icons": "tsx scripts/make-icons.ts"
+  },
+  "dependencies": {
+    "@fontsource/atkinson-hyperlegible": "^5.3.0",
+    "archiver": "^7.0.1",
+    "googleapis": "^189.0.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.0",
+    "@types/archiver": "^6.0.4",
+    "@types/node": "^22.20.5",
+    "jsdom": "^31.0.0",
+    "sharp": "^0.35.5",
+    "tsx": "^4.23.15",
+    "typescript": "5.9",
+    "vite": "^8.3.7",
+    "vitest": "^5.1.0"
+  }
+}
