@@ -184,3 +184,26 @@ describe('Player (fix round 1)', () => {
     expect(JSON.parse(localStorage.getItem(PLAYER_KEY)!).time).toBe(17);
   });
 });
+
+describe('Player (fix round 2)', () => {
+  it('retomar durante o erro cancela o pulo pendente', async () => {
+    vi.useFakeTimers();
+    player.playQueue(queue, 0);
+    audio.fire('error');
+    audio.paused = true; // um <audio> real fica pausado após erro de mídia
+    vi.advanceTimersByTime(1000);
+    player.toggle();
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(player.getState().current!.id).toBe('a');
+    expect(player.getState().playing).toBe(true);
+  });
+
+  it('pausar antes dos metadados preserva a posição restaurada', () => {
+    localStorage.setItem(PLAYER_KEY, JSON.stringify({ ids: ['a', 'b', 'c'], currentId: 'b', time: 42 }));
+    const a2 = new FakeAudio();
+    const p2 = new Player(a2);
+    p2.restore((id) => queue.find((t) => t.id === id));
+    a2.fire('pause');
+    expect(JSON.parse(localStorage.getItem(PLAYER_KEY)!).time).toBe(42);
+  });
+});

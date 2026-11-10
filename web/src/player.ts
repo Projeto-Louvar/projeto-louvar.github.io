@@ -49,10 +49,14 @@ export class Player {
         this.pendingSeek = null;
       }
     });
-    audio.addEventListener('play', () => this.patch({ playing: true, error: null }));
+    audio.addEventListener('play', () => {
+      this.mediaError = false;
+      this.clearErrorTimer();
+      this.patch({ playing: true, error: null });
+    });
     audio.addEventListener('pause', () => {
       this.patch({ playing: false });
-      this.save(audio.currentTime);
+      this.save(this.pendingSeek ?? audio.currentTime);
     });
     audio.addEventListener('ended', () => this.next());
     audio.addEventListener('error', () => {
