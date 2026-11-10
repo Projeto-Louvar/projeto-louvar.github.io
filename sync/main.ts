@@ -1,11 +1,11 @@
-import { appendFileSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Catalog, Track } from '../shared/catalog';
 import { createDrive, downloadToFile, snapshotDrive } from './drive';
 import { Releases } from './github';
 import { contentTypeFor, uniqueEntryNames } from './names';
-import { assetUrl, finalizeCatalog, orphanUrls, planSync, zipReady } from './plan';
+import { assetUrl, deletableNow, finalizeCatalog, massDeletionBlocked, nextPendingDeletes, planSync, zipReady } from './plan';
 import { buildTree } from './tree';
 import { buildZip } from './zipper';
 import { MAX_ZIP_BYTES, splitIntoParts, zipAssetName } from './zips';
@@ -17,6 +17,8 @@ function env(key: string, fallback?: string): string {
 }
 
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e));
+const isFatal = (e: unknown) => /HTTP 40[13]/.test(errMsg(e));
+const ZIP_MARGIN_MS = 30 * 60_000;
 
 async function main(): Promise<void> {
   const started = Date.now();
@@ -39,23 +41,31 @@ async function main(): Promise<void> {
   const notReady = new Set<string>();
   const failures: string[] = [];
   let uploaded = 0;
+  let skipped = 0;
+  let fatal = false;
+  const writeCatalog = (c: Catalog) => {
+    writeFileSync(`${catalogPath}.tmp`, JSON.stringify(c));
+    renameSync(`${catalogPath}.tmp`, catalogPath);
+  };
 
   for (const job of plan.uploads) {
-    if (outOfTime()) {
+    if (fatal || outOfTime()) {
       notReady.add(job.url);
       continue;
     }
     const file = join(tmp, job.assetName);
     try {
       const rel = await gh.ensure(job.tag, nameOf.get(job.tag) ?? job.tag);
-      if (!gh.hasSameSize(rel, job.assetName, job.size)) {
+      if (gh.hasSameSize(rel, job.assetName, job.size)) skipped++;
+      else {
         await downloadToFile(drive, job.fileId, file);
         await gh.upload(rel, job.assetName, file, contentTypeFor(job.assetName));
+        uploaded++;
       }
-      uploaded++;
     } catch (e) {
       notReady.add(job.url);
       failures.push(`${job.fileName}: ${errMsg(e)}`);
+      if (isFatal(e)) fatal = true;
     } finally {
       rmSync(file, { force: true });
     }
@@ -64,9 +74,11 @@ async function main(): Promise<void> {
   const catalog = finalizeCatalog(plan.catalog, notReady, prev);
   const trackById = new Map(catalog.tracks.map((t) => [t.id, t]));
   const replacedZips: string[] = [];
+  catalog.pendingDeletes = nextPendingDeletes(prev, catalog, [], []);
+  writeCatalog(catalog); // checkpoint: o progresso sobrevive a um timeout
 
   for (const z of plan.zips) {
-    if (outOfTime()) break;
+    if (fatal || Date.now() - started > budgetMs - ZIP_MARGIN_MS) break;
     const col = catalog.collections.find((c) => c.id === z.collectionId);
     if (!col || !zipReady(z.collectionId, catalog, plan.catalog)) continue;
     const tracks: Track[] = col.trackIds.map((id) => trackById.get(id)!);
@@ -77,7 +89,8 @@ async function main(): Promise<void> {
       const rel = await gh.ensure(z.tag, col.name);
       const urls: string[] = [];
       for (let p = 0; p < parts.length; p++) {
-        const name = zipAssetName(z.baseName, p + 1, parts.length);
+        if (outOfTime()) throw new Error('sem tempo; zip abandonado');
+        const name = zipAssetName(`${z.baseName}-${z.zipKey.slice(0, 8)}`, p + 1, parts.length);
         const file = join(tmp, name);
         try {
           await buildZip(parts[p], file);
@@ -92,26 +105,37 @@ async function main(): Promise<void> {
       col.zipKey = z.zipKey;
     } catch (e) {
       failures.push(`zip ${col.name}: ${errMsg(e)}`);
+      if (isFatal(e)) fatal = true;
     }
   }
 
-  // Só apaga assets individuais, nunca releases inteiras (o dedup por md5 faz faixas apontarem para releases de outras coleções).
-  let deleted = 0;
-  for (const url of [...orphanUrls(prev, catalog), ...replacedZips]) {
-    if (outOfTime()) break;
-    try {
-      await gh.deleteByUrl(url);
-      deleted++;
-    } catch (e) {
-      failures.push(`apagar ${url}: ${errMsg(e)}`);
+  // Só apaga assets individuais (nunca releases inteiras) e só um ciclo depois de o catálogo commitado deixar de referenciá-los.
+  const toDelete = deletableNow(prev, catalog);
+  const deletedOK: string[] = [];
+  let blocked = false;
+  if (massDeletionBlocked(toDelete.length, prev) && process.env.ALLOW_MASS_DELETE !== '1') {
+    blocked = true;
+  } else {
+    for (const url of toDelete) {
+      if (fatal || outOfTime()) break;
+      try {
+        await gh.deleteByUrl(url);
+        deletedOK.push(url);
+      } catch (e) {
+        failures.push(`apagar ${url}: ${errMsg(e)}`);
+        if (isFatal(e)) fatal = true;
+      }
     }
   }
+  const pending = nextPendingDeletes(prev, catalog, replacedZips, deletedOK);
+  if (pending.length) catalog.pendingDeletes = pending;
+  else delete catalog.pendingDeletes;
 
   if (prev) {
     const strip = (c: Catalog) => JSON.stringify({ ...c, generatedAt: '' });
     if (strip(prev) === strip(catalog)) catalog.generatedAt = prev.generatedAt;
   }
-  writeFileSync(catalogPath, JSON.stringify(catalog));
+  writeCatalog(catalog);
   rmSync(tmp, { recursive: true, force: true });
 
   const summary = [
@@ -119,14 +143,19 @@ async function main(): Promise<void> {
     `- Faixas no site: ${catalog.tracks.length}`,
     `- Coleções: ${catalog.collections.length}`,
     `- Enviadas agora: ${uploaded}`,
+    `- Já existentes no GitHub: ${skipped}`,
     `- Pendentes para o próximo ciclo: ${notReady.size}`,
-    `- Arquivos apagados: ${deleted}`,
+    `- Arquivos apagados: ${deletedOK.length}`,
+    `- Apagar no próximo ciclo: ${pending.length}`,
+    ...(blocked ? [`- ATENÇÃO: exclusão em massa bloqueada (${toDelete.length} arquivos). Confira o Drive; para liberar, rode com ALLOW_MASS_DELETE=1.`] : []),
+    ...(fatal ? ['- ERRO: acesso negado pelo GitHub (HTTP 401/403); ciclo interrompido.'] : []),
     `- Arquivos ignorados (não são áudio): ${snap.skipped?.length ?? 0}`,
     `- Falhas: ${failures.length}`,
     ...failures.slice(0, 50).map((f) => `  - ${f}`),
   ].join('\n');
   console.log(summary);
   if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${summary}\n`);
+  if (fatal) process.exitCode = 1;
 }
 
 main().catch((e) => {

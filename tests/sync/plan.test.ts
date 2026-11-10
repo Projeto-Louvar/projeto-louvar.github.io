@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import type { Catalog } from '../../shared/catalog';
 import { buildTree, type DriveSnapshot } from '../../sync/tree';
-import { finalizeCatalog, orphanUrls, planSync, PALETTE, zipKeyFor, zipReady } from '../../sync/plan';
+import { finalizeCatalog, orphanUrls, planSync, PALETTE, zipKeyFor, zipReady, deletableNow, nextPendingDeletes, massDeletionBlocked } from '../../sync/plan';
 
 const BASE = 'https://github.com/dono/louvores';
 const NOW = '2026-11-10T06:00:00.000Z';
@@ -175,5 +176,33 @@ describe('zipReady', () => {
 
   it('false para coleção sem faixas', () => {
     expect(zipReady('R', finalizeCatalog(planned, new Set()), planned)).toBe(false);
+  });
+});
+
+describe('exclusão adiada', () => {
+  const snap = snapshot([f1, f2, f3]);
+  const base = planSync(snap, buildTree(snap), null, BASE, NOW).catalog;
+  const u = (n: string) => `${BASE}/releases/download/c-A/${n}`;
+  const withPending = (pendingDeletes: string[]): Catalog => ({ ...base, pendingDeletes });
+  const used = base.tracks[0].url;
+
+  it('deletableNow: pendentes anteriores que o novo catálogo não referencia', () => {
+    expect(deletableNow(withPending([u('x.mp3'), used]), base)).toEqual([u('x.mp3')]);
+    expect(deletableNow(null, base)).toEqual([]);
+  });
+
+  it('nextPendingDeletes: órfãos + extras + pendentes não apagados, sem duplicar nem referenciados', () => {
+    const prev: Catalog = { ...base, tracks: [...base.tracks, { ...base.tracks[0], id: 'z', url: u('orf.mp3') }], pendingDeletes: [u('p1.mp3'), u('p2.mp3'), used] };
+    const r = nextPendingDeletes(prev, base, [u('zip.zip'), u('p1.mp3')], [u('p2.mp3')]);
+    expect(r.sort()).toEqual([u('orf.mp3'), u('p1.mp3'), u('zip.zip')].sort());
+  });
+
+  it('massDeletionBlocked: >20 e >30% das urls do catálogo anterior', () => {
+    expect(massDeletionBlocked(2, base)).toBe(false);
+    const big: Catalog = { ...base, tracks: Array.from({ length: 100 }, (_, i) => ({ ...base.tracks[0], id: `t${i}`, url: u(`${i}.mp3`) })) };
+    expect(massDeletionBlocked(21, big)).toBe(false);
+    expect(massDeletionBlocked(31, big)).toBe(true);
+    expect(massDeletionBlocked(25, null)).toBe(true);
+    expect(massDeletionBlocked(20, null)).toBe(false);
   });
 });

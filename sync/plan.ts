@@ -141,3 +141,20 @@ export function zipReady(collectionId: string, finalCat: Catalog, planned: Catal
   const finalUrl = new Map(finalCat.tracks.map((t) => [t.id, t.url]));
   return finalCol.trackIds.every((id) => finalUrl.get(id) !== undefined && finalUrl.get(id) === plannedUrl.get(id));
 }
+
+export function deletableNow(prev: Catalog | null, next: Catalog): string[] {
+  const used = allUrls(next);
+  return (prev?.pendingDeletes ?? []).filter((u) => !used.has(u));
+}
+
+export function nextPendingDeletes(prev: Catalog | null, next: Catalog, extra: string[], deletedNow: string[]): string[] {
+  const used = allUrls(next);
+  const done = new Set(deletedNow);
+  const all = [...orphanUrls(prev, next), ...extra, ...(prev?.pendingDeletes ?? [])];
+  return [...new Set(all)].filter((u) => !used.has(u) && !done.has(u));
+}
+
+export function massDeletionBlocked(count: number, prev: Catalog | null): boolean {
+  const total = prev ? allUrls(prev).size : 0;
+  return count > 20 && count > total * 0.3;
+}

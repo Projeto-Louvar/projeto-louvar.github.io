@@ -23,6 +23,7 @@ export interface Collection {
 export interface Catalog {
   generatedAt: string;
   rootId: string;
+  pendingDeletes?: string[]; // urls órfãs a apagar no próximo ciclo (o site ignora)
   sample?: boolean;    // true no catálogo de amostra (o sync o ignora como estado)
   collections: Collection[];
   tracks: Track[];

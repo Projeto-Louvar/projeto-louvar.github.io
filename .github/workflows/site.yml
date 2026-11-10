@@ -9,16 +9,14 @@ on:
 
 permissions:
   contents: write
-  pages: write
-  id-token: write
 
 concurrency:
-  group: site
+  group: site-${{ github.event_name == 'push' && 'push' || 'sync' }}
   cancel-in-progress: false
 
 jobs:
   sync:
-    if: github.event_name != 'push'
+    if: github.event_name != 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 340
     steps:
@@ -29,11 +27,13 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run sync
+        timeout-minutes: 315
         env:
           GDRIVE_SA_JSON: ${{ secrets.GDRIVE_SA_JSON }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TIME_BUDGET_MIN: '300'
       - name: Gravar catálogo
+        if: ${{ !cancelled() }}
         run: |
           if git diff --quiet -- web/public/catalog.json; then
             echo "Catálogo sem mudanças."
@@ -42,13 +42,22 @@ jobs:
             git config user.email "louvores-bot@users.noreply.github.com"
             git add web/public/catalog.json
             git commit -m "chore: atualiza catálogo"
-            git push
+            ok=0
+            for i in 1 2 3; do
+              if git pull --rebase origin main && git push origin HEAD:main; then ok=1; break; fi
+              sleep 10
+            done
+            [ "$ok" = 1 ] || { echo "Falha ao publicar o catálogo"; exit 1; }
           fi
 
   deploy:
     needs: sync
     if: ${{ !cancelled() && (needs.sync.result == 'success' || needs.sync.result == 'skipped') }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
