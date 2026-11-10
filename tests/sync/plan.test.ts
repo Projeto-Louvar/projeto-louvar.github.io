@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildTree, type DriveSnapshot } from '../../sync/tree';
-import { finalizeCatalog, orphanUrls, planSync, PALETTE, zipKeyFor } from '../../sync/plan';
+import { finalizeCatalog, orphanUrls, planSync, PALETTE, zipKeyFor, zipReady } from '../../sync/plan';
 
 const BASE = 'https://github.com/dono/louvores';
 const NOW = '2026-11-10T06:00:00.000Z';
@@ -151,5 +151,29 @@ describe('finalizeCatalog — com catálogo anterior', () => {
     const cat = finalizeCatalog(plan.catalog, notReady, null);
     expect(cat.collections.map((c) => c.id)).toEqual(['R', 'A']);
     expect(cat.collections.find((c) => c.id === 'R')!.childIds).toEqual(['A']);
+  });
+});
+
+describe('zipReady', () => {
+  const snap = snapshot([f1, f2, f3]);
+  const planned = planSync(snap, buildTree(snap), null, BASE, NOW).catalog;
+
+  it('true quando todas as faixas têm a url planejada', () => {
+    expect(zipReady('A', finalizeCatalog(planned, new Set()), planned)).toBe(true);
+  });
+
+  it('false quando uma faixa voltou para a url anterior', () => {
+    const fin = finalizeCatalog(planned, new Set());
+    const stale = { ...fin, tracks: fin.tracks.map((t) => (t.id === 'f2' ? { ...t, url: `${BASE}/releases/download/c-A/velho.mp3` } : t)) };
+    expect(zipReady('A', stale, planned)).toBe(false);
+  });
+
+  it('false quando faltam faixas em relação ao planejado', () => {
+    const fin = finalizeCatalog(planned, new Set([planned.tracks.find((t) => t.id === 'f2')!.url]));
+    expect(zipReady('A', fin, planned)).toBe(false);
+  });
+
+  it('false para coleção sem faixas', () => {
+    expect(zipReady('R', finalizeCatalog(planned, new Set()), planned)).toBe(false);
   });
 });

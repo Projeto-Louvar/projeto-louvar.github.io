@@ -130,3 +130,14 @@ export function orphanUrls(prev: Catalog | null, next: Catalog): string[] {
   const used = allUrls(next);
   return [...allUrls(prev)].filter((u) => !used.has(u));
 }
+
+// O zip só vale se cada faixa da coleção tem exatamente a url planejada; faixa que caiu para a versão anterior geraria zip com áudio velho.
+export function zipReady(collectionId: string, finalCat: Catalog, planned: Catalog): boolean {
+  const plannedCol = planned.collections.find((c) => c.id === collectionId);
+  const finalCol = finalCat.collections.find((c) => c.id === collectionId);
+  if (!plannedCol || !finalCol || finalCol.trackIds.length === 0) return false;
+  if (finalCol.trackIds.length !== plannedCol.trackIds.length) return false;
+  const plannedUrl = new Map(planned.tracks.map((t) => [t.id, t.url]));
+  const finalUrl = new Map(finalCat.tracks.map((t) => [t.id, t.url]));
+  return finalCol.trackIds.every((id) => finalUrl.get(id) !== undefined && finalUrl.get(id) === plannedUrl.get(id));
+}
