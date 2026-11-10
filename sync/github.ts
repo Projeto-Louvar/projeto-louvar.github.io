@@ -1,7 +1,7 @@
 import { createReadStream, statSync } from 'node:fs';
 import { Readable } from 'node:stream';
 
-export interface ReleaseAsset { id: number; name: string; size: number }
+export interface ReleaseAsset { id: number; name: string; size: number; state: string }
 export interface Release { id: number; tag: string; assets: Map<string, ReleaseAsset> }
 
 export class Releases {
@@ -28,15 +28,27 @@ export class Releases {
     });
   }
 
-  private async load(id: number, tag: string): Promise<Release> {
+  private async listAssets(id: number, tag: string): Promise<Map<string, ReleaseAsset>> {
     const assets = new Map<string, ReleaseAsset>();
     for (let page = 1; ; page++) {
       const r = await this.api(`/releases/${id}/assets?per_page=100&page=${page}`);
       if (!r.ok) throw new Error(`assets ${tag}: HTTP ${r.status} ${await r.text()}`);
       const list = (await r.json()) as ReleaseAsset[];
-      for (const a of list) assets.set(a.name, { id: a.id, name: a.name, size: a.size });
+      for (const a of list) assets.set(a.name, { id: a.id, name: a.name, size: a.size, state: a.state });
       if (list.length < 100) break;
     }
+    return assets;
+  }
+
+  // Recarrega a lista de assets da release in place (mantém a mesma instância de rel).
+  private async refresh(rel: Release): Promise<void> {
+    const fresh = await this.listAssets(rel.id, rel.tag);
+    rel.assets.clear();
+    for (const [name, a] of fresh) rel.assets.set(name, a);
+  }
+
+  private async load(id: number, tag: string): Promise<Release> {
+    const assets = await this.listAssets(id, tag);
     const rel = { id, tag, assets };
     this.cache.set(tag, rel);
     return rel;
@@ -66,26 +78,37 @@ export class Releases {
     return rel;
   }
 
+  // Só considera "igual" um asset totalmente enviado (state 'uploaded'); um 'starter' é resto de upload interrompido.
   hasSameSize(rel: Release, name: string, size: number): boolean {
-    return rel.assets.get(name)?.size === size;
+    const a = rel.assets.get(name);
+    return a !== undefined && a.state === 'uploaded' && a.size === size;
   }
 
   async upload(rel: Release, name: string, path: string, contentType: string, opts: { force?: boolean } = {}): Promise<void> {
     const size = statSync(path).size;
     if (!opts.force && this.hasSameSize(rel, name, size)) return;
     if (rel.assets.has(name)) await this.deleteAsset(rel, name);
-    const res = await fetch(
-      `https://uploads.github.com/repos/${this.repo}/releases/${rel.id}/assets?name=${encodeURIComponent(name)}`,
-      {
-        method: 'POST',
-        headers: this.headers({ 'content-type': contentType, 'content-length': String(size) }),
-        body: Readable.toWeb(createReadStream(path)) as ReadableStream,
-        duplex: 'half',
-      } as RequestInit,
-    );
+    const post = () =>
+      fetch(
+        `https://uploads.github.com/repos/${this.repo}/releases/${rel.id}/assets?name=${encodeURIComponent(name)}`,
+        {
+          method: 'POST',
+          headers: this.headers({ 'content-type': contentType, 'content-length': String(size) }),
+          body: Readable.toWeb(createReadStream(path)) as ReadableStream,
+          duplex: 'half',
+        } as RequestInit,
+      );
+    let res = await post();
+    if (res.status === 422) {
+      // 422 already_exists: o cache estava desatualizado (asset 'starter' de tentativa anterior).
+      await res.text();
+      await this.refresh(rel);
+      await this.deleteAsset(rel, name);
+      res = await post();
+    }
     if (!res.ok) throw new Error(`enviar ${name}: HTTP ${res.status} ${await res.text()}`);
     const a = (await res.json()) as ReleaseAsset;
-    rel.assets.set(a.name, { id: a.id, name: a.name, size: a.size });
+    rel.assets.set(a.name, { id: a.id, name: a.name, size: a.size, state: a.state });
   }
 
   async deleteAsset(rel: Release, name: string): Promise<void> {
