@@ -111,3 +111,45 @@ describe('orphanUrls', () => {
     expect(orphanUrls(null, planSync(snap, buildTree(snap), null, BASE, NOW).catalog)).toEqual([]);
   });
 });
+
+describe('finalizeCatalog — com catálogo anterior', () => {
+  const snap1 = snapshot([f1, f2]);
+  const prev = planSync(snap1, buildTree(snap1), null, BASE, NOW).catalog;
+
+  it('arquivo modificado sem upload pronto mantém a faixa antiga', () => {
+    const snap2 = snapshot([{ ...f1, md5: 'ccc' }, f2]);
+    const plan = planSync(snap2, buildTree(snap2), prev, BASE, NOW);
+    const notReady = new Set(plan.uploads.map((u) => u.url));
+    const cat = finalizeCatalog(plan.catalog, notReady, prev);
+    const t1 = cat.tracks.find((t) => t.id === 'f1')!;
+    expect(t1.url).toBe(prev.tracks.find((t) => t.id === 'f1')!.url);
+    expect(t1.md5).toBe('aaa');
+    expect(cat.collections.find((c) => c.id === 'A')!.trackIds).toContain('f1');
+    expect(orphanUrls(prev, cat)).not.toContain(t1.url);
+  });
+  it('arquivo novo não pronto continua descartado', () => {
+    const snap2 = snapshot([f1, f2, { ...f3, md5: 'zzz' }]);
+    const plan = planSync(snap2, buildTree(snap2), prev, BASE, NOW);
+    const notReady = new Set(plan.uploads.map((u) => u.url));
+    const cat = finalizeCatalog(plan.catalog, notReady, prev);
+    expect(cat.tracks.map((t) => t.id)).toEqual(['f1', 'f2']);
+    expect(cat.collections.map((c) => c.id)).toEqual(['R', 'A']);
+  });
+  it('poda aninhada em mais de um nível, mantendo a raiz', () => {
+    const snap: DriveSnapshot = {
+      rootId: 'R',
+      folders: [
+        { id: 'R', name: 'Louvores', parentId: null },
+        { id: 'A', name: 'Antigas', parentId: 'R' },
+        { id: 'B', name: 'Bônus', parentId: 'R' },
+        { id: 'C', name: 'Fundo', parentId: 'B' },
+      ],
+      files: [f1, { id: 'f4', name: 'Deep.mp3', parentId: 'C', md5: 'ddd', size: 5 }],
+    };
+    const plan = planSync(snap, buildTree(snap), null, BASE, NOW);
+    const notReady = new Set([plan.uploads.find((u) => u.fileId === 'f4')!.url]);
+    const cat = finalizeCatalog(plan.catalog, notReady, null);
+    expect(cat.collections.map((c) => c.id)).toEqual(['R', 'A']);
+    expect(cat.collections.find((c) => c.id === 'R')!.childIds).toEqual(['A']);
+  });
+});

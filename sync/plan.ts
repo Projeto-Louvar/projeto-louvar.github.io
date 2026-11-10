@@ -83,8 +83,18 @@ export function planSync(
   return { catalog: { generatedAt: now, rootId: snap.rootId, collections, tracks }, uploads, zips };
 }
 
-export function finalizeCatalog(cat: Catalog, notReady: Set<string>): Catalog {
-  const tracks = cat.tracks.filter((t) => !notReady.has(t.url));
+export function finalizeCatalog(cat: Catalog, notReady: Set<string>, prev: Catalog | null = null): Catalog {
+  const prevTracks = new Map((prev?.tracks ?? []).map((t) => [t.id, t]));
+  const tracks: Track[] = [];
+  for (const t of cat.tracks) {
+    if (!notReady.has(t.url)) {
+      tracks.push(t);
+      continue;
+    }
+    // upload pendente: mantém a versão anterior (ainda válida); o md5 antigo faz a próxima execução tentar de novo
+    const old = prevTracks.get(t.id);
+    if (old && !notReady.has(old.url)) tracks.push({ ...old, collectionId: t.collectionId });
+  }
   const ready = new Set(tracks.map((t) => t.id));
   const cols = new Map(cat.collections.map((c) => [c.id, { ...c, trackIds: c.trackIds.filter((id) => ready.has(id)) }]));
   const memo = new Map<string, number>();
