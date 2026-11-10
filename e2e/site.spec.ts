@@ -72,3 +72,13 @@ test('coleção inexistente mostra aviso', async ({ page }) => {
   await page.goto('/#/c/nao-existe');
   await expect(page.getByRole('heading', { level: 1, name: 'Coleção não encontrada' })).toBeVisible();
 });
+
+test('manifesto, service worker e noindex', async ({ page, request }) => {
+  await page.goto('/');
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex, nofollow');
+  const manifest = await (await request.get('/manifest.webmanifest')).json();
+  expect(manifest).toMatchObject({ name: 'Louvores', display: 'standalone', start_url: './' });
+  expect((await request.get('/sw.js')).ok()).toBe(true);
+  expect(await (await request.get('/robots.txt')).text()).toContain('Disallow: /');
+  await expect.poll(() => page.evaluate(async () => !!(await navigator.serviceWorker.getRegistration()))).toBe(true);
+});
