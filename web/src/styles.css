@@ -7,10 +7,11 @@
   --accent: #1f4e79;
   --accent-soft: #eaf1f8;
   --on-accent: #ffffff;
-  --focus: #e8a317;
+  --focus: #1a1a1a;
+  --focus-on-dark: #ffd166;
   --radius: 14px;
   --gutter: 16px;
-  --player-h: 210px;
+  --player-h: 230px;
   font-size: 20px;
 }
 
@@ -26,6 +27,7 @@ body {
 body.has-player { padding-bottom: calc(var(--player-h) + env(safe-area-inset-bottom)); }
 a { color: var(--accent); }
 :focus-visible { outline: 4px solid var(--focus); outline-offset: 3px; }
+.player :focus-visible { outline-color: var(--focus-on-dark); }
 h1:focus { outline: none; }
 
 .page { max-width: 1100px; margin: 0 auto; padding: 20px var(--gutter) 32px; }
@@ -101,14 +103,21 @@ h2 { font-size: 1.35rem; margin: 28px 0 12px; }
 .pb-artist { margin: 0; min-height: 1.2em; font-size: 0.85rem; opacity: 0.92; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pb-error { margin: 0; color: #ffd9d9; font-size: 0.85rem; }
 .pb-error:empty { display: none; }
-.pb-progress { display: flex; align-items: center; gap: 10px; margin-top: 6px; margin-bottom: 6px; }
-.pb-range { flex: 1; min-width: 0; height: 36px; accent-color: #fff; }
-.pb-time { font-size: 0.8rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pb-progress { display: flex; align-items: center; gap: 10px; margin: 0; }
+.pb-range {
+  flex: 1; min-width: 0; height: 56px; margin: 0; padding: 0; background: transparent;
+  -webkit-appearance: none; appearance: none; cursor: pointer;
+}
+.pb-range::-webkit-slider-runnable-track { height: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.45); }
+.pb-range::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 32px; height: 32px; margin-top: -12px; border-radius: 50%; background: #fff; border: 0; }
+.pb-range::-moz-range-track { height: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.45); }
+.pb-range::-moz-range-thumb { width: 32px; height: 32px; border-radius: 50%; background: #fff; border: 0; }
+.pb-time { font-size: 0.85rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .pb-controls { display: flex; justify-content: center; gap: 14px; }
 .pb-btn {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-  min-width: 76px; min-height: 64px; padding: 4px 10px;
-  font: inherit; font-size: 0.75rem; color: #fff; cursor: pointer;
+  min-width: 76px; min-height: 60px; padding: 2px 10px;
+  font: inherit; font-size: 0.85rem; color: #fff; cursor: pointer;
   background: transparent; border: 2px solid rgba(255, 255, 255, 0.6); border-radius: var(--radius);
 }
 .pb-play { min-width: 96px; font-weight: 700; color: var(--accent); background: #fff; border-color: #fff; }

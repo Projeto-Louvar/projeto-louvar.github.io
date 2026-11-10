@@ -50,12 +50,22 @@ test('voltar de subcoleção leva à coleção-mãe', async ({ page }) => {
 
 test('sem rolagem horizontal em 360px', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 740 });
-  for (const path of ['/', '/#/c/louvor-adoracao', '/#/busca?q=louvor']) {
+  const routes: [string, string][] = [['/', 'Louvores'], ['/#/c/louvor-adoracao', 'Louvor & Adoração'], ['/#/busca?q=louvor', 'Buscar']];
+  for (const [path, title] of routes) {
     await page.goto(path);
-    await page.waitForSelector('h1');
+    await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
     const width = await page.evaluate(() => document.documentElement.scrollWidth);
     expect(width, path).toBeLessThanOrEqual(360);
   }
+});
+
+test('sem rolagem horizontal em 360px com o tocador aberto', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 740 });
+  await page.goto('/#/c/louvor-adoracao');
+  await page.getByRole('button', { name: /^Tocar Consagração/ }).click();
+  await expect(page.getByRole('region', { name: 'Tocador' })).toBeVisible();
+  const width = await page.evaluate(() => document.documentElement.scrollWidth);
+  expect(width).toBeLessThanOrEqual(360);
 });
 
 test('coleção inexistente mostra aviso', async ({ page }) => {

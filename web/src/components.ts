@@ -8,7 +8,7 @@ import type { Ctx } from './views';
 
 export function searchForm(q: string): HTMLFormElement {
   const input = h('input', {
-    type: 'search', name: 'q', value: q, placeholder: 'Nome da música ou cantor',
+    type: 'search', name: 'q', value: q, placeholder: 'Música ou cantor',
     'aria-label': 'Buscar música', enterkeyhint: 'search', autocomplete: 'off',
   });
   return h('form', {
@@ -63,12 +63,17 @@ export function downloadAll(ctx: Ctx, c: Collection, tracks: Track[]): HTMLEleme
     class: 'btn btn-big', type: 'button',
     onclick: async () => {
       button.disabled = true;
-      await downloadSequential(tracks.map((t) => t.url), (done, total) => {
-        status.textContent = done < total
-          ? `Baixando ${done + 1} de ${total}… Se aparecer uma pergunta, toque em “Permitir”.`
-          : `Pronto! ${countLabel(total)} enviadas para a pasta Downloads.`;
-      });
-      button.disabled = false;
+      try {
+        await downloadSequential(tracks.map((t) => t.url), (done, total) => {
+          status.textContent = done < total
+            ? `Baixando ${done + 1} de ${total}… Se aparecer uma pergunta, toque em “Permitir”.`
+            : `Pronto! ${countLabel(total)} enviadas para a pasta Downloads.`;
+        });
+      } catch {
+        status.textContent = 'Não foi possível baixar todas. Tente de novo.';
+      } finally {
+        button.disabled = false;
+      }
     },
   }, '⬇ Baixar todas');
   return h('div', { class: 'download-all' }, button, status);

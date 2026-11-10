@@ -20,11 +20,16 @@ export function renderPlayerBar(player: Player): HTMLElement {
   const next = controlButton(ICONS.next, 'Próxima', () => player.next());
 
   let dragging = false;
-  range.addEventListener('input', () => { dragging = true; });
-  range.addEventListener('change', () => {
-    dragging = false;
+  const endDrag = () => { dragging = false; };
+  range.addEventListener('input', () => {
+    dragging = true;
     player.seek(Number(range.value));
   });
+  range.addEventListener('change', () => {
+    endDrag();
+    player.seek(Number(range.value));
+  });
+  for (const ev of ['pointerup', 'touchend', 'blur']) range.addEventListener(ev, endDrag);
 
   const bar = h('div', { class: 'player', hidden: true, role: 'region', 'aria-label': 'Tocador' },
     h('div', { class: 'pb-info' }, title, artist, error),
@@ -38,7 +43,8 @@ export function renderPlayerBar(player: Player): HTMLElement {
     if (!s.current) return;
     title.textContent = s.current.title;
     artist.textContent = s.current.artist;
-    error.textContent = s.error ?? '';
+    const errText = s.error ?? '';
+    if (error.textContent !== errText) error.textContent = errText;
     if (wasPlaying !== s.playing) {
       wasPlaying = s.playing;
       play.querySelector('.pb-icon')!.innerHTML = s.playing ? ICONS.pause : ICONS.play;
