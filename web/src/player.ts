@@ -24,12 +24,16 @@ interface Saved { ids: string[]; currentId: string; time: number }
 
 export const PLAYER_KEY = 'louvores.player';
 const ERROR_TEXT = 'Não foi possível tocar esta música';
+const AUTOPLAY_HINT = 'Toque em ▶ para continuar';
 
 export class Player {
   private state: PlayerState = { queue: [], index: -1, current: null, playing: false, currentTime: 0, duration: 0, error: null };
   private listeners = new Set<(s: PlayerState) => void>();
   private pendingSeek: number | null = null;
   private lastSave = 0;
+  private wantPlay = false;
+  private mediaError = false;
+  private errorTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(private audio: AudioLike, private opts: { skipDelayMs?: number } = {}) {
     audio.addEventListener('timeupdate', () => {
@@ -46,13 +50,21 @@ export class Player {
       }
     });
     audio.addEventListener('play', () => this.patch({ playing: true, error: null }));
-    audio.addEventListener('pause', () => this.patch({ playing: false }));
+    audio.addEventListener('pause', () => {
+      this.patch({ playing: false });
+      this.save(audio.currentTime);
+    });
     audio.addEventListener('ended', () => this.next());
     audio.addEventListener('error', () => {
       const at = this.state.index;
+      this.mediaError = true;
       this.patch({ playing: false, error: ERROR_TEXT });
-      setTimeout(() => {
-        if (this.state.index === at && this.state.error) this.next();
+      this.clearErrorTimer();
+      this.errorTimer = setTimeout(() => {
+        this.errorTimer = null;
+        if (this.state.index !== at || !this.mediaError) return;
+        if (at < this.state.queue.length - 1) this.load(at + 1, this.wantPlay);
+        else this.audio.pause();
       }, this.opts.skipDelayMs ?? 3000);
     });
     this.setupMediaSession();
@@ -69,23 +81,31 @@ export class Player {
   }
 
   playQueue(tracks: Track[], start = 0): void {
+    this.wantPlay = true;
     this.patch({ queue: tracks });
     this.load(start, true);
   }
 
   toggle(): void {
     if (!this.state.current) return;
-    if (this.audio.paused) void this.safePlay();
-    else this.audio.pause();
+    if (this.audio.paused) {
+      this.wantPlay = true;
+      void this.safePlay();
+    } else {
+      this.wantPlay = false;
+      this.audio.pause();
+    }
   }
 
   next(): void {
+    this.wantPlay = true;
     if (this.state.index < this.state.queue.length - 1) this.load(this.state.index + 1, true);
     else this.audio.pause();
   }
 
   prev(): void {
-    if (this.audio.currentTime > 3 || this.state.index <= 0) {
+    this.wantPlay = true;
+    if ((this.pendingSeek ?? this.audio.currentTime) > 3 || this.state.index <= 0) {
       this.seek(0);
       return;
     }
@@ -93,8 +113,10 @@ export class Player {
   }
 
   seek(seconds: number): void {
-    this.audio.currentTime = Math.max(0, seconds);
-    this.patch({ currentTime: this.audio.currentTime });
+    const t = Math.max(0, seconds);
+    this.pendingSeek = null;
+    this.audio.currentTime = t;
+    this.patch({ currentTime: t });
   }
 
   restore(lookup: (id: string) => Track | undefined): void {
@@ -103,6 +125,7 @@ export class Player {
     const queue = saved.ids.map(lookup).filter((t): t is Track => !!t);
     if (!queue.length) return;
     const found = queue.findIndex((t) => t.id === saved.currentId);
+    this.wantPlay = false;
     this.patch({ queue });
     this.load(found >= 0 ? found : 0, false, found >= 0 ? Number(saved.time) || 0 : 0);
   }
@@ -110,6 +133,8 @@ export class Player {
   private load(i: number, autoplay: boolean, startAt = 0): void {
     const t = this.state.queue[i];
     if (!t) return;
+    this.clearErrorTimer();
+    this.mediaError = false;
     this.audio.src = t.url;
     this.pendingSeek = startAt > 0 ? startAt : null;
     this.patch({ index: i, current: t, currentTime: startAt, duration: 0, error: null });
@@ -121,9 +146,15 @@ export class Player {
   private async safePlay(): Promise<void> {
     try {
       await this.audio.play();
-    } catch {
-      this.patch({ playing: false });
+    } catch (e) {
+      const denied = (e as { name?: string } | null)?.name === 'NotAllowedError';
+      this.patch(denied ? { playing: false, error: AUTOPLAY_HINT } : { playing: false });
     }
+  }
+
+  private clearErrorTimer(): void {
+    if (this.errorTimer !== null) clearTimeout(this.errorTimer);
+    this.errorTimer = null;
   }
 
   private save(time: number): void {
@@ -147,8 +178,14 @@ export class Player {
         /* ação não suportada neste navegador */
       }
     };
-    set('play', () => void this.safePlay());
-    set('pause', () => this.audio.pause());
+    set('play', () => {
+      this.wantPlay = true;
+      void this.safePlay();
+    });
+    set('pause', () => {
+      this.wantPlay = false;
+      this.audio.pause();
+    });
     set('previoustrack', () => this.prev());
     set('nexttrack', () => this.next());
     set('seekto', (d) => {

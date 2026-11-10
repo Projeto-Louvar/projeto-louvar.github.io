@@ -8,7 +8,9 @@ class FakeAudio extends EventTarget implements AudioLike {
   currentTime = 0;
   duration = Number.NaN;
   paused = true;
+  playCalls = 0;
   async play() {
+    this.playCalls++;
     this.paused = false;
     this.dispatchEvent(new Event('play'));
   }
@@ -119,5 +121,66 @@ describe('Player', () => {
     localStorage.setItem(PLAYER_KEY, JSON.stringify({ ids: ['x'], currentId: 'x', time: 1 }));
     player.restore(() => undefined);
     expect(player.getState().current).toBeNull();
+  });
+});
+
+describe('Player (fix round 1)', () => {
+  it('restore + erro pula para a próxima faixa sem tocar sozinho', () => {
+    vi.useFakeTimers();
+    localStorage.setItem(PLAYER_KEY, JSON.stringify({ ids: ['a', 'b', 'c'], currentId: 'a', time: 0 }));
+    const a2 = new FakeAudio();
+    const p2 = new Player(a2, { skipDelayMs: 3000 });
+    p2.restore((id) => queue.find((t) => t.id === id));
+    a2.fire('error');
+    vi.advanceTimersByTime(3000);
+    expect(p2.getState().current!.id).toBe('b');
+    expect(p2.getState().playing).toBe(false);
+    expect(a2.playCalls).toBe(0);
+  });
+
+  it('erro repetido reinicia o temporizador de pulo', () => {
+    vi.useFakeTimers();
+    player.playQueue(queue, 0);
+    audio.fire('error');
+    vi.advanceTimersByTime(2000);
+    player.playQueue(queue, 0);
+    audio.fire('error');
+    vi.advanceTimersByTime(1000);
+    expect(player.getState().current!.id).toBe('a');
+    vi.advanceTimersByTime(2000);
+    expect(player.getState().current!.id).toBe('b');
+  });
+
+  it('NotAllowedError mostra dica e não pula', async () => {
+    vi.useFakeTimers();
+    audio.play = async () => {
+      throw { name: 'NotAllowedError' };
+    };
+    player.playQueue(queue, 0);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(player.getState().error).toBe('Toque em ▶ para continuar');
+    expect(player.getState().playing).toBe(false);
+    vi.advanceTimersByTime(5000);
+    expect(player.getState().current!.id).toBe('a');
+  });
+
+  it('anterior logo após restaurar reinicia a mesma faixa', () => {
+    localStorage.setItem(PLAYER_KEY, JSON.stringify({ ids: ['a', 'b', 'c'], currentId: 'b', time: 42 }));
+    const a2 = new FakeAudio();
+    const p2 = new Player(a2);
+    p2.restore((id) => queue.find((t) => t.id === id));
+    p2.prev();
+    expect(p2.getState().index).toBe(1);
+    expect(p2.getState().currentTime).toBe(0);
+    a2.fire('loadedmetadata');
+    expect(a2.currentTime).toBe(0);
+  });
+
+  it('salva a posição ao pausar', () => {
+    player.playQueue(queue, 0);
+    audio.currentTime = 17.6;
+    audio.pause();
+    expect(JSON.parse(localStorage.getItem(PLAYER_KEY)!).time).toBe(17);
   });
 });
