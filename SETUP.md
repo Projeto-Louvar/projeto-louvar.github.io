@@ -23,7 +23,7 @@ Leva uns 15 minutos. Depois disso o site se atualiza sozinho todo dia às 3h (ho
 
 ## O que eu faço em seguida
 
-- Crio o repositório público `louvores` na conta nova e envio o código.
+- Crio o repositório público `projeto-louvar.github.io` na conta Projeto-Louvar (site em https://projeto-louvar.github.io).
 - Guardo a chave como segredo `GDRIVE_SA_JSON` (ela nunca fica visível no repositório).
 - Ativo o GitHub Pages e rodo a primeira sincronização. A primeira carga do acervo pode levar alguns ciclos (cada ciclo dura até 5 horas); o site já funciona com o que tiver sido enviado.
 - Testo a reprodução num iPhone e num Android com você.
