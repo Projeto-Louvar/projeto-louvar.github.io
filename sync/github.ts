@@ -4,12 +4,69 @@ import { Readable } from 'node:stream';
 export interface ReleaseAsset { id: number; name: string; size: number; state: string }
 export interface Release { id: number; tag: string; assets: Map<string, ReleaseAsset> }
 
+export class RateLimitError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'RateLimitError';
+  }
+}
+
+const DEFAULT_WAIT_MS = 60_000;
+const MAX_RATE_LIMIT_RETRIES = 5;
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+// Milissegundos a esperar se a resposta for um limite de uso do GitHub; null caso contrário.
+export function rateLimitWait(status: number, headers: Headers | Record<string, string>, body: string, nowMs: number): number | null {
+  const get = (k: string): string | null => {
+    if (headers instanceof Headers) return headers.get(k);
+    const hit = Object.keys(headers).find((h) => h.toLowerCase() === k);
+    return hit === undefined ? null : headers[hit];
+  };
+  const retryAfter = get('retry-after');
+  const limited = status === 429 || (status === 403 && (get('x-ratelimit-remaining') === '0' || retryAfter !== null || /rate limit/i.test(body)));
+  if (!limited) return null;
+  const ra = retryAfter === null ? NaN : Number(retryAfter);
+  if (Number.isFinite(ra) && ra >= 0) return Math.ceil(ra * 1000);
+  const reset = Number(get('x-ratelimit-reset'));
+  if (get('x-ratelimit-reset') !== null && Number.isFinite(reset)) return Math.max(0, reset * 1000 - nowMs);
+  return DEFAULT_WAIT_MS;
+}
+
+export interface ReleasesOptions {
+  /** epoch ms depois do qual não se deve mais dormir esperando limite de uso */
+  deadline?: number;
+  /** intervalo mínimo entre inícios de uploads consecutivos (ms) */
+  uploadIntervalMs?: number;
+}
+
 export class Releases {
   private cache = new Map<string, Release>();
   readonly repoBase: string;
+  private lastUploadAt = 0;
+  private deadline: number;
+  private uploadIntervalMs: number;
 
-  constructor(private token: string, private repo: string) {
+  constructor(private token: string, private repo: string, deadline?: number, uploadIntervalMs = 7500) {
     this.repoBase = `https://github.com/${repo}`;
+    this.deadline = deadline ?? Infinity;
+    this.uploadIntervalMs = uploadIntervalMs;
+  }
+
+  // Executa a requisição; em limite de uso espera (se couber no prazo) e repete.
+  private async withRateLimit(make: () => Promise<Response>): Promise<Response> {
+    for (let attempt = 0; ; attempt++) {
+      const res = await make();
+      if (res.status !== 429 && res.status !== 403) return res;
+      const body = await res.clone().text();
+      const wait = rateLimitWait(res.status, res.headers, body, Date.now());
+      if (wait === null) return res;
+      if (attempt >= MAX_RATE_LIMIT_RETRIES) throw new RateLimitError('Limite de uso do GitHub persistiu após várias tentativas.');
+      if (Date.now() + wait > this.deadline) {
+        throw new RateLimitError(`Limite de uso do GitHub: a espera de ${Math.ceil(wait / 1000)} s não cabe no tempo restante.`);
+      }
+      console.log(`Limite de uso do GitHub; aguardando ${Math.ceil(wait / 1000)} s antes de tentar de novo.`);
+      await sleep(wait);
+    }
   }
 
   private headers(extra: Record<string, string> = {}): Record<string, string> {
@@ -22,10 +79,12 @@ export class Releases {
   }
 
   private api(path: string, init: RequestInit = {}): Promise<Response> {
-    return fetch(`https://api.github.com/repos/${this.repo}${path}`, {
-      ...init,
-      headers: this.headers(init.body ? { 'content-type': 'application/json' } : {}),
-    });
+    return this.withRateLimit(() =>
+      fetch(`https://api.github.com/repos/${this.repo}${path}`, {
+        ...init,
+        headers: this.headers(init.body ? { 'content-type': 'application/json' } : {}),
+      }),
+    );
   }
 
   private async listAssets(id: number, tag: string): Promise<Map<string, ReleaseAsset>> {
@@ -88,16 +147,22 @@ export class Releases {
     const size = statSync(path).size;
     if (!opts.force && this.hasSameSize(rel, name, size)) return;
     if (rel.assets.has(name)) await this.deleteAsset(rel, name);
+    // cada tentativa recria o stream de leitura; o ritmo entre inícios de POST evita o limite secundário
     const post = () =>
-      fetch(
-        `https://uploads.github.com/repos/${this.repo}/releases/${rel.id}/assets?name=${encodeURIComponent(name)}`,
-        {
-          method: 'POST',
-          headers: this.headers({ 'content-type': contentType, 'content-length': String(size) }),
-          body: Readable.toWeb(createReadStream(path)) as ReadableStream,
-          duplex: 'half',
-        } as RequestInit,
-      );
+      this.withRateLimit(async () => {
+        const gap = this.lastUploadAt + this.uploadIntervalMs - Date.now();
+        if (gap > 0) await sleep(gap);
+        this.lastUploadAt = Date.now();
+        return fetch(
+          `https://uploads.github.com/repos/${this.repo}/releases/${rel.id}/assets?name=${encodeURIComponent(name)}`,
+          {
+            method: 'POST',
+            headers: this.headers({ 'content-type': contentType, 'content-length': String(size) }),
+            body: Readable.toWeb(createReadStream(path)) as ReadableStream,
+            duplex: 'half',
+          } as RequestInit,
+        );
+      });
     let res = await post();
     if (res.status === 422) {
       // 422 already_exists: o cache estava desatualizado (asset 'starter' de tentativa anterior).

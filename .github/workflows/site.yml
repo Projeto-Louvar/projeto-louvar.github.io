@@ -6,6 +6,11 @@ on:
   schedule:
     - cron: '0 6 * * *'
   workflow_dispatch:
+    inputs:
+      allow_mass_delete:
+        description: 'Permitir a exclusão em massa de arquivos no GitHub (use só depois de conferir o Drive)'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -21,6 +26,8 @@ jobs:
     timeout-minutes: 340
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -32,14 +39,18 @@ jobs:
           GDRIVE_SA_JSON: ${{ secrets.GDRIVE_SA_JSON }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TIME_BUDGET_MIN: '300'
+          ALLOW_MASS_DELETE: ${{ inputs.allow_mass_delete && '1' || '' }}
       - name: Gravar catálogo
         if: ${{ !cancelled() }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if git diff --quiet -- web/public/catalog.json; then
             echo "Catálogo sem mudanças."
           else
             git config user.name "louvores-bot"
             git config user.email "louvores-bot@users.noreply.github.com"
+            git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
             git add web/public/catalog.json
             git commit -m "chore: atualiza catálogo"
             ok=0

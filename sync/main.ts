@@ -3,9 +3,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Catalog, Track } from '../shared/catalog';
 import { createDrive, downloadToFile, snapshotDrive } from './drive';
-import { Releases } from './github';
+import { RateLimitError, Releases } from './github';
 import { contentTypeFor, uniqueEntryNames } from './names';
-import { assetUrl, deletableNow, finalizeCatalog, massDeletionBlocked, nextPendingDeletes, planSync, zipReady } from './plan';
+import { assetUrl, deletableNow, finalizeCatalog, keepGeneratedAt, massDeletionBlocked, nextPendingDeletes, planSync, zipReady } from './plan';
 import { buildTree } from './tree';
 import { buildZip } from './zipper';
 import { MAX_ZIP_BYTES, splitIntoParts, zipAssetName } from './zips';
@@ -17,7 +17,9 @@ function env(key: string, fallback?: string): string {
 }
 
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e));
-const isFatal = (e: unknown) => /HTTP 40[13]/.test(errMsg(e));
+// github.ts já espera e repete os limites de uso; um 401/403 que chega aqui é erro real de permissão.
+const isFatal = (e: unknown) => !(e instanceof RateLimitError) && /HTTP 40[13]/.test(errMsg(e));
+const CHECKPOINT_EVERY = 50;
 const ZIP_MARGIN_MS = 30 * 60_000;
 
 async function main(): Promise<void> {
@@ -30,7 +32,7 @@ async function main(): Promise<void> {
   const prev = prevRaw && !prevRaw.sample ? prevRaw : null;
 
   const drive = createDrive(env('GDRIVE_SA_JSON'));
-  const gh = new Releases(env('GITHUB_TOKEN'), env('GITHUB_REPOSITORY'));
+  const gh = new Releases(env('GITHUB_TOKEN'), env('GITHUB_REPOSITORY'), started + budgetMs);
 
   const snap = await snapshotDrive(drive, env('ROOT_FOLDER_ID', '1ak8DwNK4UeRQmKLpKhEao-XdyEj0Z8EC'));
   const tree = buildTree(snap);
@@ -42,18 +44,31 @@ async function main(): Promise<void> {
   const failures: string[] = [];
   let uploaded = 0;
   let skipped = 0;
+  let checkpointDue = false;
   let fatal = false;
+  let rateLimited = false;
+  const halted = () => fatal || rateLimited || outOfTime();
+  const onError = (e: unknown) => {
+    if (e instanceof RateLimitError) rateLimited = true;
+    else if (isFatal(e)) fatal = true;
+  };
   const writeCatalog = (c: Catalog) => {
-    if (prev) {
-      const strip = (x: Catalog) => JSON.stringify({ ...x, generatedAt: '' });
-      if (strip(prev) === strip(c)) c.generatedAt = prev.generatedAt;
-    }
+    if (prev && keepGeneratedAt(prev, c, Date.now())) c.generatedAt = prev.generatedAt;
     writeFileSync(`${catalogPath}.tmp`, JSON.stringify(c));
     renameSync(`${catalogPath}.tmp`, catalogPath);
   };
 
-  for (const job of plan.uploads) {
-    if (fatal || outOfTime()) {
+  const checkpoint = (nextIndex: number) => {
+    // jobs ainda não tentados contam como pendentes: o checkpoint nunca inclui faixa sem upload concluído
+    const pendingNow = new Set(notReady);
+    for (let k = nextIndex; k < plan.uploads.length; k++) pendingNow.add(plan.uploads[k].url);
+    const cp = finalizeCatalog(plan.catalog, pendingNow, prev);
+    cp.pendingDeletes = nextPendingDeletes(prev, cp, [], []);
+    writeCatalog(cp);
+  };
+
+  for (const [idx, job] of plan.uploads.entries()) {
+    if (halted()) {
       notReady.add(job.url);
       continue;
     }
@@ -65,13 +80,18 @@ async function main(): Promise<void> {
         await downloadToFile(drive, job.fileId, file);
         await gh.upload(rel, job.assetName, file, contentTypeFor(job.assetName));
         uploaded++;
+        if (uploaded % CHECKPOINT_EVERY === 0) checkpointDue = true;
       }
     } catch (e) {
       notReady.add(job.url);
       failures.push(`${job.fileName}: ${errMsg(e)}`);
-      if (isFatal(e)) fatal = true;
+      onError(e);
     } finally {
       rmSync(file, { force: true });
+    }
+    if (checkpointDue) {
+      checkpointDue = false;
+      checkpoint(idx + 1);
     }
   }
 
@@ -82,7 +102,7 @@ async function main(): Promise<void> {
   writeCatalog(catalog); // checkpoint: o progresso sobrevive a um timeout
 
   for (const z of plan.zips) {
-    if (fatal || Date.now() - started > budgetMs - ZIP_MARGIN_MS) break;
+    if (fatal || rateLimited || Date.now() - started > budgetMs - ZIP_MARGIN_MS) break;
     const col = catalog.collections.find((c) => c.id === z.collectionId);
     if (!col || !zipReady(z.collectionId, catalog, plan.catalog)) continue;
     const tracks: Track[] = col.trackIds.map((id) => trackById.get(id)!);
@@ -110,7 +130,7 @@ async function main(): Promise<void> {
     } catch (e) {
       replacedZips.push(...urls); // partes já enviadas ficam órfãs: vão para a exclusão adiada
       failures.push(`zip ${col.name}: ${errMsg(e)}`);
-      if (isFatal(e)) fatal = true;
+      onError(e);
     }
   }
 
@@ -122,13 +142,13 @@ async function main(): Promise<void> {
     blocked = true;
   } else {
     for (const url of toDelete) {
-      if (fatal || outOfTime()) break;
+      if (halted()) break;
       try {
         await gh.deleteByUrl(url);
         deletedOK.push(url);
       } catch (e) {
         failures.push(`apagar ${url}: ${errMsg(e)}`);
-        if (isFatal(e)) fatal = true;
+        onError(e);
       }
     }
   }
@@ -148,7 +168,8 @@ async function main(): Promise<void> {
     `- Pendentes para o próximo ciclo: ${notReady.size}`,
     `- Arquivos apagados: ${deletedOK.length}`,
     `- Apagar no próximo ciclo: ${pending.length}`,
-    ...(blocked ? [`- ATENÇÃO: exclusão em massa bloqueada (${toDelete.length} arquivos). Confira o Drive; para liberar, rode com ALLOW_MASS_DELETE=1.`] : []),
+    ...(blocked ? [`- ATENÇÃO: exclusão em massa bloqueada (${toDelete.length} arquivos). Confira o Drive; para liberar, rode manualmente o workflow 'Site' marcando 'allow_mass_delete'.`] : []),
+    ...(rateLimited ? ['- Limite de uso do GitHub atingido; o envio continua no próximo ciclo.'] : []),
     ...(fatal ? ['- ERRO: acesso negado pelo GitHub (HTTP 401/403); ciclo interrompido.'] : []),
     `- Arquivos ignorados (não são áudio): ${snap.skipped?.length ?? 0}`,
     `- Falhas: ${failures.length}`,

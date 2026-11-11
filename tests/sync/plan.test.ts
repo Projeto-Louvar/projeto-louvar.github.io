@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Catalog } from '../../shared/catalog';
 import { buildTree, type DriveSnapshot } from '../../sync/tree';
-import { finalizeCatalog, orphanUrls, planSync, PALETTE, zipKeyFor, zipReady, deletableNow, nextPendingDeletes, massDeletionBlocked } from '../../sync/plan';
+import { finalizeCatalog, orphanUrls, planSync, PALETTE, zipKeyFor, zipReady, deletableNow, nextPendingDeletes, massDeletionBlocked, keepGeneratedAt } from '../../sync/plan';
 
 const BASE = 'https://github.com/dono/louvores';
 const NOW = '2026-11-10T06:00:00.000Z';
@@ -204,5 +204,35 @@ describe('exclusão adiada', () => {
     expect(massDeletionBlocked(31, big)).toBe(true);
     expect(massDeletionBlocked(25, null)).toBe(true);
     expect(massDeletionBlocked(20, null)).toBe(false);
+  });
+});
+
+describe('keepGeneratedAt', () => {
+  const DAY = 86_400_000;
+  const base: Catalog = { generatedAt: '2026-11-01T00:00:00.000Z', rootId: 'R', collections: [], tracks: [] };
+  const now = Date.parse(base.generatedAt) + 5 * DAY;
+  it('inalterado e recente: mantém', () => {
+    expect(keepGeneratedAt(base, { ...base, generatedAt: 'x' }, now)).toBe(true);
+  });
+  it('inalterado e com mais de 30 dias: renova', () => {
+    expect(keepGeneratedAt(base, { ...base, generatedAt: 'x' }, Date.parse(base.generatedAt) + 31 * DAY)).toBe(false);
+  });
+  it('alterado: renova', () => {
+    expect(keepGeneratedAt(base, { ...base, rootId: 'Z' }, now)).toBe(false);
+  });
+  it('sem anterior: renova', () => {
+    expect(keepGeneratedAt(null, base, now)).toBe(false);
+  });
+});
+
+describe('planSync — nomes pendentes de exclusão', () => {
+  it('não reaproveita nome de asset pendente de exclusão', () => {
+    const snap = snapshot([f1]);
+    const prev: Catalog = {
+      generatedAt: NOW, rootId: 'R', collections: [], tracks: [],
+      pendingDeletes: [`${BASE}/releases/download/c-A/01-cassiane-hino.mp3`],
+    };
+    const plan = planSync(snap, buildTree(snap), prev, BASE, NOW);
+    expect(plan.uploads[0].assetName).toBe('01-cassiane-hino-2.mp3');
   });
 });

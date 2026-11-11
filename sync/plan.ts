@@ -42,6 +42,8 @@ export function planSync(
     const prefix = `${repoBase}/releases/download/${tag}/`;
     const taken = new Set<string>();
     for (const t of prev?.tracks ?? []) if (t.url.startsWith(prefix)) taken.add(decodeURIComponent(t.url.slice(prefix.length)));
+    // nomes pendentes de exclusão ainda existem no GitHub: não podem ser reaproveitados
+    for (const u of prev?.pendingDeletes ?? []) if (u.startsWith(prefix)) taken.add(decodeURIComponent(u.slice(prefix.length)));
 
     const trackIds: string[] = [];
     const md5s: string[] = [];
@@ -157,4 +159,15 @@ export function nextPendingDeletes(prev: Catalog | null, next: Catalog, extra: s
 export function massDeletionBlocked(count: number, prev: Catalog | null): boolean {
   const total = prev ? allUrls(prev).size : 0;
   return count > 20 && count > total * 0.3;
+}
+
+export const REFRESH_AFTER_MS = 30 * 86_400_000;
+
+// O GitHub desativa o `schedule` após 60 dias sem atividade: mesmo sem mudanças, renova o timestamp a cada 30 dias para forçar um commit.
+export function keepGeneratedAt(prev: Catalog | null, next: Catalog, nowMs: number): boolean {
+  if (!prev) return false;
+  const strip = (x: Catalog) => JSON.stringify({ ...x, generatedAt: '' });
+  if (strip(prev) !== strip(next)) return false;
+  const at = Date.parse(prev.generatedAt);
+  return Number.isFinite(at) && nowMs - at < REFRESH_AFTER_MS;
 }
