@@ -8,7 +8,7 @@ test.beforeEach(async ({ page }) => {
 
 test('início mostra seções e capas', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { level: 1, name: 'Louvores' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Projeto Louvar' })).toBeVisible();
   await expect(page.getByRole('heading', { level: 2, name: 'Biblioteca Completa' })).toBeVisible();
   await expect(page.getByRole('heading', { level: 2, name: 'Bônus' })).toBeVisible();
   await expect(page.getByRole('link', { name: /Louvor & Adoração/ })).toBeVisible();
@@ -51,12 +51,12 @@ test('voltar de subcoleção leva à coleção-mãe', async ({ page }) => {
   await page.getByRole('link', { name: '← Voltar' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Grupo Integração' })).toBeVisible();
   await page.getByRole('link', { name: '← Voltar' }).click();
-  await expect(page.getByRole('heading', { level: 1, name: 'Louvores' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Projeto Louvar' })).toBeVisible();
 });
 
 test('sem rolagem horizontal em 360px', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 740 });
-  const routes: [string, string][] = [['/', 'Louvores'], ['/#/c/louvor-adoracao', 'Louvor & Adoração'], ['/#/busca?q=louvor', 'Buscar']];
+  const routes: [string, string][] = [['/', 'Projeto Louvar'], ['/#/c/louvor-adoracao', 'Louvor & Adoração'], ['/#/busca?q=louvor', 'Buscar']];
   for (const [path, title] of routes) {
     await page.goto(path);
     await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
@@ -83,7 +83,7 @@ test('manifesto, service worker e noindex', async ({ page, request }) => {
   await page.goto('/');
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex, nofollow');
   const manifest = await (await request.get('/manifest.webmanifest')).json();
-  expect(manifest).toMatchObject({ name: 'Louvores', display: 'standalone', start_url: './' });
+  expect(manifest).toMatchObject({ name: 'Projeto Louvar', short_name: 'Louvar', display: 'standalone', start_url: './' });
   expect((await request.get('/sw.js')).ok()).toBe(true);
   expect(await (await request.get('/robots.txt')).text()).toContain('Disallow: /');
   await expect.poll(() => page.evaluate(async () => !!(await navigator.serviceWorker.getRegistration()))).toBe(true);
@@ -108,4 +108,68 @@ test('página de créditos lista o autor de cada foto', async ({ page }) => {
   await expect(page.getByRole('heading', { level: 1, name: 'Créditos das fotos' })).toBeVisible();
   expect(await page.locator('.credits li').count()).toBeGreaterThanOrEqual(50);
   await expect(page.locator('.credits li a').first()).toHaveAttribute('href', /commons\.wikimedia\.org/);
+});
+
+test.describe('instalar no celular', () => {
+  test('celular: aviso leva ao passo a passo; "Agora não" esconde e é lembrado', async ({ page }, info) => {
+    test.skip(info.project.name !== 'celular', 'só no celular');
+    await page.goto('/');
+    const banner = page.getByRole('complementary', { name: 'Instalar no celular' });
+    await expect(banner).toBeVisible();
+    await banner.getByRole('link', { name: 'Instalar no celular' }).click();
+    await expect(page.getByRole('heading', { level: 1, name: 'Instalar no celular' })).toBeVisible();
+    await expect(page.locator('.steps').first()).toContainText('Instalar app');
+    await page.getByRole('link', { name: '← Voltar' }).click();
+    await page.getByRole('button', { name: 'Agora não' }).click();
+    await expect(banner).toBeHidden();
+    await page.reload();
+    await expect(page.getByRole('heading', { level: 1, name: 'Projeto Louvar' })).toBeVisible();
+    await expect(banner).toBeHidden();
+  });
+
+  test('janela de instalação do Chrome: botão abre e confirma', async ({ page }, info) => {
+    test.skip(info.project.name !== 'celular', 'só no celular');
+    await page.goto('/');
+    await page.evaluate(() => {
+      const e = Object.assign(new Event('beforeinstallprompt', { cancelable: true }), {
+        prompt: () => { (window as unknown as { asked: boolean }).asked = true; return Promise.resolve(); },
+        userChoice: Promise.resolve({ outcome: 'accepted' }),
+      });
+      window.dispatchEvent(e);
+    });
+    const banner = page.getByRole('complementary', { name: 'Instalar no celular' });
+    await banner.getByRole('button', { name: 'Instalar no celular' }).click();
+    await expect(banner).toContainText('Pronto! O Louvar já está na tela do seu celular');
+    expect(await page.evaluate(() => (window as unknown as { asked: boolean }).asked)).toBe(true);
+  });
+
+  test('iPhone: passo a passo do Safari', async ({ browser }) => {
+    const ctx = await browser.newContext({
+      userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1',
+      viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true,
+    });
+    const page = await ctx.newPage();
+    await page.route('**/catalog.json', (route) => route.fulfill({ path: 'e2e/fixtures/catalog.json' }));
+    await page.goto('/#/instalar');
+    await expect(page.locator('.steps').first()).toContainText('Adicionar à Tela de Início');
+    await expect(page.getByText('Tem um celular Android?')).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+    await ctx.close();
+  });
+
+  test('computador: sem aviso; a página explica abrir no celular', async ({ page }, info) => {
+    test.skip(info.project.name !== 'computador', 'só no computador');
+    await page.goto('/');
+    await expect(page.getByRole('heading', { level: 1, name: 'Projeto Louvar' })).toBeVisible();
+    await expect(page.getByRole('complementary', { name: 'Instalar no celular' })).toBeHidden();
+    await page.getByRole('link', { name: 'Instalar no celular' }).click();
+    await expect(page.getByText('Abra este mesmo endereço no seu celular')).toBeVisible();
+  });
+
+  test('sem rolagem horizontal em 360px na página de instalar', async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 740 });
+    await page.goto('/#/instalar');
+    await expect(page.getByRole('heading', { level: 1, name: 'Instalar no celular' })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
+  });
 });

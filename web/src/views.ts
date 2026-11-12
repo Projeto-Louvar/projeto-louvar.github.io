@@ -2,6 +2,8 @@ import { h } from './dom';
 import type { CatalogIndex } from './catalogIndex';
 import type { Platform } from './downloads';
 import { countLabel } from './format';
+import type { InstallState } from './install';
+import { installBanner, installPanel } from './installView';
 import type { Player } from './player';
 import { hrefFor } from './router';
 import { searchTracks } from './search';
@@ -12,6 +14,7 @@ export interface Ctx {
   idx: CatalogIndex;
   player: Player;
   platform: Platform;
+  install: InstallState;
   onCleanup(fn: () => void): void;
 }
 
@@ -20,11 +23,23 @@ const backLink = (href: string) => h('a', { class: 'back', href }, '← Voltar')
 
 export function renderHome(ctx: Ctx): HTMLElement {
   return page(
-    h('h1', { class: 'site-title', tabindex: '-1' }, 'Louvores'),
+    h('h1', { class: 'site-title', tabindex: '-1' }, 'Projeto Louvar'),
+    installBanner(ctx),
     searchForm(''),
     ...ctx.idx.homeSections().map((s) =>
       h('section', { class: 'section' }, h('h2', {}, s.title), tileGrid(ctx.idx, s.collections))),
-    h('p', { class: 'site-foot' }, h('a', { href: hrefFor({ name: 'credits' }) }, 'Créditos das fotos')),
+    h('p', { class: 'site-foot' },
+      h('a', { href: hrefFor({ name: 'install' }) }, 'Instalar no celular'),
+      h('a', { href: hrefFor({ name: 'credits' }) }, 'Créditos das fotos')),
+  );
+}
+
+export function renderInstall(ctx: Ctx): HTMLElement {
+  return page(
+    backLink(hrefFor({ name: 'home' })),
+    h('h1', { tabindex: '-1' }, 'Instalar no celular'),
+    h('p', { class: 'note' }, 'O Louvar fica com um ícone na tela do celular, igual a um aplicativo. Não ocupa espaço e não pede cadastro.'),
+    installPanel(ctx),
   );
 }
 

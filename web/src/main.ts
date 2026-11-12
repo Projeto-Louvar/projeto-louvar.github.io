@@ -4,10 +4,14 @@ import './styles.css';
 import { CatalogIndex, loadCatalog } from './catalogIndex';
 import { h } from './dom';
 import { detectPlatform } from './downloads';
+import { InstallState } from './install';
 import { Player } from './player';
 import { renderPlayerBar } from './playerBar';
 import { parseHash } from './router';
-import { renderCollection, renderCredits, renderError, renderHome, renderSearch, type Ctx } from './views';
+import { renderCollection, renderCredits, renderError, renderHome, renderInstall, renderSearch, type Ctx } from './views';
+
+// Precisa existir antes de carregar o catálogo: o Chrome avisa que dá para instalar logo no começo.
+const install = new InstallState();
 
 async function boot(): Promise<void> {
   const app = document.getElementById('app')!;
@@ -31,12 +35,13 @@ async function boot(): Promise<void> {
   const render = () => {
     cleanups.forEach((fn) => fn());
     cleanups = [];
-    const ctx: Ctx = { idx, player, platform, onCleanup: (fn) => cleanups.push(fn) };
+    const ctx: Ctx = { idx, player, platform, install, onCleanup: (fn) => cleanups.push(fn) };
     const route = parseHash(location.hash);
     const view =
       route.name === 'collection' ? renderCollection(ctx, route.id)
       : route.name === 'search' ? renderSearch(ctx, route.q)
       : route.name === 'credits' ? renderCredits(ctx)
+      : route.name === 'install' ? renderInstall(ctx)
       : renderHome(ctx);
     outlet.replaceChildren(view);
     window.scrollTo(0, 0);

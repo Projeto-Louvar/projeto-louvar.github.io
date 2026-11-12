@@ -201,8 +201,8 @@ export class Player {
     if (typeof navigator === 'undefined' || !navigator.mediaSession || typeof MediaMetadata === 'undefined') return;
     navigator.mediaSession.metadata = new MediaMetadata({
       title: t.title,
-      artist: t.artist || 'Louvores',
-      album: 'Louvores',
+      artist: t.artist || 'Projeto Louvar',
+      album: 'Projeto Louvar',
       artwork: [{ src: './icons/icon-512.png', sizes: '512x512', type: 'image/png' }],
     });
   }
