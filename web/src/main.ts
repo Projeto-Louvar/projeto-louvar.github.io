@@ -52,7 +52,7 @@ async function boot(): Promise<void> {
   render();
 
   if ('serviceWorker' in navigator && import.meta.env.PROD) {
-    navigator.serviceWorker.register('./sw.js').catch(() => undefined);
+    navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).catch(() => undefined);
   }
 }
 

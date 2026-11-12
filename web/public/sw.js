@@ -1,5 +1,5 @@
 // Guarda só a "casca" do site. O áudio nunca é guardado aqui.
-const CACHE = 'louvores-v3';
+const CACHE = 'louvores-v4';
 const NETWORK_TIMEOUT_MS = 4000;
 
 self.addEventListener('install', (event) => {
@@ -27,7 +27,9 @@ self.addEventListener('fetch', (event) => {
   if (networkFirst) {
     const doCache = () =>
       caches.match(req).then((hit) => hit || (req.mode === 'navigate' ? caches.match('./index.html') : undefined));
-    const rede = fetch(req).then((res) => {
+    // no-cache: confere com o servidor (ETag) em vez de usar a cópia de até 10 min do navegador,
+    // para que uma versão nova do site apareça na hora.
+    const rede = fetch(req.url, { cache: 'no-cache', credentials: 'same-origin' }).then((res) => {
       if (res.ok) event.waitUntil(guarda(res.clone()));
       return res;
     });
