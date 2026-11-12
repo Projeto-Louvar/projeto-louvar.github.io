@@ -2,13 +2,23 @@ import type { Catalog, Collection, Track } from '../../shared/catalog';
 
 export interface HomeSection { title: string; collections: Collection[] }
 
+// Pastas de lançamentos ("Lançamentos 2026", depois "Lançamentos 2027"...) formam a seção Bônus,
+// estejam onde estiverem no Drive. Basta renomear a pasta no Drive para o site acompanhar.
+export const BONUS_PATTERN = /lan[cç]amentos?/i;
+export const BONUS_TITLE = 'Bônus';
+
+/** Nome para mostrar: tira prefixos de organização do Drive ("Bônus 1 - ", "Louvores - "). */
+export function displayName(name: string): string {
+  return name.replace(/^\s*b[oô]nus\s*\d*\s*[-–:]\s*/i, '').replace(/^\s*louvores\s*[-–:]\s*/i, '').trim() || name;
+}
+
 export class CatalogIndex {
   private cols: Map<string, Collection>;
   private trks: Map<string, Track>;
   private totals = new Map<string, number>();
 
   constructor(readonly data: Catalog) {
-    this.cols = new Map(data.collections.map((c) => [c.id, c]));
+    this.cols = new Map(data.collections.map((c) => [c.id, { ...c, name: displayName(c.name) }]));
     this.trks = new Map(data.tracks.map((t) => [t.id, t]));
   }
 
@@ -42,14 +52,29 @@ export class CatalogIndex {
   }
 
   homeSections(): HomeSection[] {
+    const isBonus = (c: Collection) => c.id !== this.root.id && BONUS_PATTERN.test(c.name);
+    // Só a pasta de lançamentos mais externa (subpastas dela ficam dentro dela)
+    const bonus = [...this.cols.values()].filter((c) => {
+      if (!isBonus(c)) return false;
+      for (let p = c.parentId ? this.cols.get(c.parentId) : undefined; p; p = p.parentId ? this.cols.get(p.parentId) : undefined) {
+        if (isBonus(p)) return false;
+      }
+      return true;
+    });
     const sections: HomeSection[] = [];
-    const others: Collection[] = [];
-    if (this.root.trackIds.length) others.push(this.root);
+    const loose: Collection[] = [];
+    if (this.root.trackIds.length) loose.push(this.root);
     for (const c of this.childrenOf(this.root.id)) {
-      if (c.childIds.length) sections.push({ title: c.name, collections: this.childrenOf(c.id) });
-      if (c.trackIds.length) others.push(c);
+      if (isBonus(c)) continue;
+      if (c.childIds.length) sections.push({ title: c.name, collections: this.childrenOf(c.id).filter((k) => !isBonus(k)) });
+      if (c.trackIds.length) loose.push(c);
     }
-    if (others.length) sections.push({ title: 'Outras', collections: others });
+    // Coleções soltas na pasta principal (ex.: Hinos Infantis) entram na biblioteca, não num canto à parte
+    if (loose.length) {
+      if (sections.length) sections[0] = { ...sections[0], collections: [...sections[0].collections, ...loose] };
+      else sections.push({ title: 'Biblioteca', collections: loose });
+    }
+    if (bonus.length) sections.push({ title: BONUS_TITLE, collections: bonus });
     return sections;
   }
 

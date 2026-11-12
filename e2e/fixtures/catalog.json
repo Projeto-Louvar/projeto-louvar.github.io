@@ -9,7 +9,8 @@
       "color": "#1F4E79",
       "childIds": [
         "biblioteca",
-        "bonus"
+        "hinos-infantis",
+        "lancamentos"
       ],
       "trackIds": [],
       "zipUrls": [],
@@ -99,22 +100,9 @@
       "zipKey": ""
     },
     {
-      "id": "bonus",
-      "name": "Bônus",
-      "parentId": "root",
-      "color": "#3D4F5C",
-      "childIds": [
-        "hinos-infantis",
-        "lancamentos"
-      ],
-      "trackIds": [],
-      "zipUrls": [],
-      "zipKey": ""
-    },
-    {
       "id": "hinos-infantis",
-      "name": "Hinos Infantis",
-      "parentId": "bonus",
+      "name": "Bônus 1 - Hinos Infantis",
+      "parentId": "root",
       "color": "#1F4E79",
       "childIds": [],
       "trackIds": [
@@ -127,7 +115,7 @@
     {
       "id": "lancamentos",
       "name": "Lançamentos 2026",
-      "parentId": "bonus",
+      "parentId": "root",
       "color": "#7A1F3D",
       "childIds": [],
       "trackIds": [

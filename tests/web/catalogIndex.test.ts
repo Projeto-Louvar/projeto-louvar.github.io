@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { Catalog, Collection, Track } from '../../shared/catalog';
-import { CatalogIndex, loadCatalog } from '../../web/src/catalogIndex';
+import { CatalogIndex, displayName, loadCatalog } from '../../web/src/catalogIndex';
 
 const col = (id: string, parentId: string | null, childIds: string[], trackIds: string[]): Collection => ({
   id, name: id.toUpperCase(), parentId, color: '#000', childIds, trackIds, zipUrls: [], zipKey: '',
@@ -41,8 +41,7 @@ describe('CatalogIndex', () => {
   });
   it('monta seções do início', () => {
     expect(idx.homeSections().map((s) => [s.title, s.collections.map((c) => c.id)])).toEqual([
-      ['S', ['A', 'B']],
-      ['Outras', ['O']],
+      ['S', ['A', 'B', 'O']],
     ]);
   });
   it('define para onde o botão Voltar leva', () => {
@@ -61,5 +60,39 @@ describe('loadCatalog', () => {
   it('falha com status de erro', async () => {
     const fetchFn = vi.fn().mockResolvedValue(new Response('x', { status: 500 }));
     await expect(loadCatalog(fetchFn)).rejects.toThrow('HTTP 500');
+  });
+});
+
+describe('seções: biblioteca e bônus', () => {
+  const col = (id: string, name: string, parentId: string | null, childIds: string[], trackIds: string[]) =>
+    ({ id, name, parentId, childIds, trackIds, color: '#000', zipUrls: [] }) as unknown as Collection;
+  const t = (id: string, c: string) => ({ id, title: id, artist: '', md5: id, fileName: id, collectionId: c, size: 1, url: id }) as Track;
+  const data = {
+    rootId: 'R',
+    collections: [
+      col('R', 'Louvores - SVA', null, ['B', 'I', 'L'], []),
+      col('B', 'Louvores - Biblioteca Completa', 'R', ['M', 'G'], []),
+      col('M', 'Por Momento', 'B', ['N'], []),
+      col('N', '9. Lançamentos 2027', 'M', [], ['t3']),
+      col('G', 'Gospel', 'B', [], ['t1']),
+      col('I', 'Bônus 1 - Hinos Infantis', 'R', [], ['t2']),
+      col('L', 'Lançamentos 2026', 'R', ['L1'], []),
+      col('L1', 'Lançamentos - Março', 'L', [], ['t4']),
+    ],
+    tracks: [t('t1', 'G'), t('t2', 'I'), t('t3', 'N'), t('t4', 'L1')],
+  } as unknown as Catalog;
+  const ix = new CatalogIndex(data);
+
+  it('hinos infantis vão para a biblioteca e lançamentos (onde estiverem) para o bônus', () => {
+    expect(ix.homeSections().map((s) => [s.title, s.collections.map((c) => c.id)])).toEqual([
+      ['Biblioteca Completa', ['M', 'G', 'I']],
+      ['Bônus', ['N', 'L']],
+    ]);
+  });
+  it('limpa prefixos de organização dos nomes', () => {
+    expect(ix.collection('I')!.name).toBe('Hinos Infantis');
+    expect(displayName('Bônus 2 – Extras')).toBe('Extras');
+    expect(displayName('Louvores - Biblioteca Completa')).toBe('Biblioteca Completa');
+    expect(displayName('Louvor & Adoração')).toBe('Louvor & Adoração');
   });
 });

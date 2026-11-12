@@ -22,6 +22,11 @@ test('início mostra seções e capas', async ({ page }) => {
   await expect(page.getByRole('heading', { level: 1, name: 'Projeto Louvar' })).toBeVisible();
   await expect(page.getByRole('heading', { level: 2, name: 'Biblioteca Completa' })).toBeVisible();
   await expect(page.getByRole('heading', { level: 2, name: 'Bônus' })).toBeVisible();
+  // Hinos Infantis entra na biblioteca (sem o "Bônus 1 -"); Lançamentos fica no Bônus
+  const secao = (t: string) => page.locator('section', { has: page.getByRole('heading', { level: 2, name: t }) });
+  await expect(secao('Biblioteca Completa').getByRole('link', { name: /^Hinos Infantis/ })).toBeVisible();
+  await expect(secao('Bônus').getByRole('link', { name: /^Lançamentos 2026/ })).toBeVisible();
+  await expect(page.getByText('Bônus 1')).toHaveCount(0);
   await expect(page.getByRole('link', { name: /Louvor & Adoração/ })).toBeVisible();
 });
 
