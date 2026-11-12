@@ -19,7 +19,7 @@ export interface Ctx {
 }
 
 const page = (...children: (Node | null)[]) => h('main', { class: 'page', id: 'conteudo' }, ...children);
-const backLink = (href: string) => h('a', { class: 'back', href }, '← Voltar');
+const backLink = (href: string) => h('a', { class: 'btn back', href }, '← Voltar');
 
 export function renderHome(ctx: Ctx): HTMLElement {
   return page(
@@ -29,8 +29,8 @@ export function renderHome(ctx: Ctx): HTMLElement {
     ...ctx.idx.homeSections().map((s) =>
       h('section', { class: 'section' }, h('h2', {}, s.title), tileGrid(ctx.idx, s.collections))),
     h('p', { class: 'site-foot' },
-      h('a', { href: hrefFor({ name: 'install' }) }, 'Instalar no celular'),
-      h('a', { href: hrefFor({ name: 'credits' }) }, 'Créditos das fotos')),
+      h('a', { class: 'btn', href: hrefFor({ name: 'install' }) }, 'Instalar no celular'),
+      h('a', { class: 'btn', href: hrefFor({ name: 'credits' }) }, 'Créditos das fotos')),
   );
 }
 
@@ -50,8 +50,8 @@ export function renderCredits(ctx: Ctx): HTMLElement {
     h('p', { class: 'note' }, 'As fotos das capas vêm do Wikimedia Commons e são de uso livre. Obrigado aos autores:'),
     h('ul', { class: 'credits' }, ...creditList(ctx.idx).map((c) =>
       h('li', {},
-        h('b', {}, c.collection), ': foto de ', c.artist, ' (',
-        h('a', { href: c.page, target: '_blank', rel: 'noopener' }, c.license), ')'))),
+        h('p', {}, h('b', {}, c.collection), h('br'), `Foto de ${c.artist} · licença ${c.license}`),
+        h('a', { class: 'btn btn-small', href: c.page, target: '_blank', rel: 'noopener', 'aria-label': `Ver a foto de ${c.collection}` }, 'Ver a foto')))),
   );
 }
 

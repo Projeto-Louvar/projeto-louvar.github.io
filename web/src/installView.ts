@@ -55,7 +55,7 @@ export function installPanel(ctx: Ctx): HTMLElement {
     const mode: InstallMode = ctx.install.installed ? 'installed' : installMode(ctx.platform, isStandalone(), ctx.install.canPrompt);
     const status = h('p', { class: 'note', role: 'status' });
     const other = (label: string, steps: () => HTMLElement) =>
-      h('details', { class: 'install-other' }, h('summary', {}, label), steps());
+      h('details', { class: 'install-other' }, h('summary', { class: 'btn' }, label), steps());
     box.replaceChildren(
       ...(mode === 'installed' ? [doneNote()]
         : mode === 'prompt' ? [

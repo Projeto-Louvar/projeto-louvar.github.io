@@ -173,3 +173,13 @@ test.describe('instalar no celular', () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
   });
 });
+
+test('todo link tem cara de botão (sem link solto no texto)', async ({ page }) => {
+  for (const path of ['/', '/#/instalar', '/#/creditos', '/#/c/louvor-adoracao', '/#/c/grande-deus', '/#/busca?q=louvor']) {
+    await page.goto(path);
+    await expect(page.locator('h1')).toBeVisible();
+    const soltos = await page.locator('a:not(.btn):not(.tile), summary:not(.btn)').evaluateAll((els) =>
+      els.filter((e) => (e as HTMLElement).offsetParent !== null).map((e) => e.textContent));
+    expect(soltos, path).toEqual([]);
+  }
+});
