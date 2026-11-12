@@ -1,5 +1,6 @@
 import '@fontsource/atkinson-hyperlegible/400.css';
 import '@fontsource/atkinson-hyperlegible/700.css';
+import '@fontsource/playfair-display/latin-700.css';
 import './styles.css';
 import { CatalogIndex, loadCatalog } from './catalogIndex';
 import { h } from './dom';

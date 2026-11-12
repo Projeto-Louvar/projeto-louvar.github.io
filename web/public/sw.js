@@ -1,5 +1,5 @@
 // Guarda só a "casca" do site. O áudio nunca é guardado aqui.
-const CACHE = 'louvores-v2';
+const CACHE = 'louvores-v3';
 const NETWORK_TIMEOUT_MS = 4000;
 
 self.addEventListener('install', (event) => {
