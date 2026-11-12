@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Catalog } from '../../shared/catalog';
 import { buildTree, type DriveSnapshot } from '../../sync/tree';
-import { finalizeCatalog, orphanUrls, planSync, PALETTE, zipKeyFor, zipReady, deletableNow, nextPendingDeletes, massDeletionBlocked, keepGeneratedAt } from '../../sync/plan';
+import { finalizeCatalog, orphanUrls, planSync, PALETTE, zipKeyFor, zipReady, deletableNow, nextPendingDeletes, massDeletionBlocked, keepGeneratedAt, tagFor } from '../../sync/plan';
 
 const BASE = 'https://github.com/dono/louvores';
 const NOW = '2026-11-10T06:00:00.000Z';
@@ -234,5 +234,17 @@ describe('planSync — nomes pendentes de exclusão', () => {
     };
     const plan = planSync(snap, buildTree(snap), prev, BASE, NOW);
     expect(plan.uploads[0].assetName).toBe('01-cassiane-hino-2.mp3');
+  });
+});
+
+describe('tagFor', () => {
+  it('mantém o formato c-<id> para ids aceitos pelo GitHub', () => {
+    expect(tagFor('abc123')).toBe('c-abc123');
+    expect(tagFor('16ttS8fviXxRkOWVZKH3wTq_C8M5M7dH_')).toBe('c-16ttS8fviXxRkOWVZKH3wTq_C8M5M7dH_');
+  });
+  it('não gera tag terminada em "-" (o GitHub recusa com HTTP 422)', () => {
+    const tag = tagFor('1MUSDtlpOW9jCGnFz-Y3c1lYwD3Df9Qh-');
+    expect(tag.endsWith('-')).toBe(false);
+    expect(tag).not.toBe(tagFor('1MUSDtlpOW9jCGnFz-Y3c1lYwD3Df9Qh'));
   });
 });

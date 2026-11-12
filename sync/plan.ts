@@ -10,7 +10,9 @@ export interface UploadJob { fileId: string; fileName: string; tag: string; asse
 export interface ZipJob { collectionId: string; tag: string; zipKey: string; baseName: string }
 export interface SyncPlan { catalog: Catalog; uploads: UploadJob[]; zips: ZipJob[] }
 
-export const tagFor = (collectionId: string): string => `c-${collectionId}`;
+// O GitHub recusa tags terminadas em "-" (HTTP 422). Ids do Drive têm tamanho fixo, então o sufixo não colide.
+export const tagFor = (collectionId: string): string =>
+  collectionId.endsWith("-") ? `c-${collectionId}0` : `c-${collectionId}`;
 
 export const assetUrl = (repoBase: string, tag: string, name: string): string =>
   `${repoBase}/releases/download/${tag}/${encodeURIComponent(name)}`;
