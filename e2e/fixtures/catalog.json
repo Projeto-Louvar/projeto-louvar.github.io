@@ -1,0 +1,273 @@
+{
+  "generatedAt": "2026-11-10T20:58:08.052Z",
+  "rootId": "root",
+  "collections": [
+    {
+      "id": "root",
+      "name": "Louvores - SVA",
+      "parentId": null,
+      "color": "#1F4E79",
+      "childIds": [
+        "biblioteca",
+        "bonus"
+      ],
+      "trackIds": [],
+      "zipUrls": [],
+      "zipKey": ""
+    },
+    {
+      "id": "biblioteca",
+      "name": "Biblioteca Completa",
+      "parentId": "root",
+      "color": "#7A1F3D",
+      "childIds": [
+        "grupo-integracao",
+        "louvor-adoracao",
+        "louvor-antigas"
+      ],
+      "trackIds": [],
+      "zipUrls": [],
+      "zipKey": ""
+    },
+    {
+      "id": "grupo-integracao",
+      "name": "Grupo Integração",
+      "parentId": "biblioteca",
+      "color": "#2E6B3A",
+      "childIds": [
+        "grande-deus",
+        "juntos-lar"
+      ],
+      "trackIds": [],
+      "zipUrls": [],
+      "zipKey": ""
+    },
+    {
+      "id": "grande-deus",
+      "name": "Grande Deus",
+      "parentId": "grupo-integracao",
+      "color": "#8A4B0F",
+      "childIds": [],
+      "trackIds": [
+        "c1",
+        "c2"
+      ],
+      "zipUrls": [],
+      "zipKey": ""
+    },
+    {
+      "id": "juntos-lar",
+      "name": "Juntos Vamos ao Lar",
+      "parentId": "grupo-integracao",
+      "color": "#4B2E83",
+      "childIds": [],
+      "trackIds": [
+        "d2",
+        "d1"
+      ],
+      "zipUrls": [],
+      "zipKey": ""
+    },
+    {
+      "id": "louvor-adoracao",
+      "name": "Louvor & Adoração",
+      "parentId": "biblioteca",
+      "color": "#0F6E6E",
+      "childIds": [],
+      "trackIds": [
+        "a1",
+        "a2",
+        "a3"
+      ],
+      "zipUrls": [
+        "./sample-audio/louvor-adoracao.zip"
+      ],
+      "zipKey": ""
+    },
+    {
+      "id": "louvor-antigas",
+      "name": "Louvor das Antigas",
+      "parentId": "biblioteca",
+      "color": "#9B2C2C",
+      "childIds": [],
+      "trackIds": [
+        "b1",
+        "b2",
+        "b3"
+      ],
+      "zipUrls": [],
+      "zipKey": ""
+    },
+    {
+      "id": "bonus",
+      "name": "Bônus",
+      "parentId": "root",
+      "color": "#3D4F5C",
+      "childIds": [
+        "hinos-infantis",
+        "lancamentos"
+      ],
+      "trackIds": [],
+      "zipUrls": [],
+      "zipKey": ""
+    },
+    {
+      "id": "hinos-infantis",
+      "name": "Hinos Infantis",
+      "parentId": "bonus",
+      "color": "#1F4E79",
+      "childIds": [],
+      "trackIds": [
+        "e2",
+        "e1"
+      ],
+      "zipUrls": [],
+      "zipKey": ""
+    },
+    {
+      "id": "lancamentos",
+      "name": "Lançamentos 2026",
+      "parentId": "bonus",
+      "color": "#7A1F3D",
+      "childIds": [],
+      "trackIds": [
+        "f1"
+      ],
+      "zipUrls": [],
+      "zipKey": ""
+    }
+  ],
+  "tracks": [
+    {
+      "id": "c1",
+      "title": "Grande Deus",
+      "artist": "Grupo Integração",
+      "fileName": "Grupo Integração - Grande Deus.mp3",
+      "collectionId": "grande-deus",
+      "md5": "970804be563d7ea157734672c28c08f5",
+      "size": 160539,
+      "url": "./sample-audio/c1.mp3"
+    },
+    {
+      "id": "c2",
+      "title": "Vem Adorar",
+      "artist": "Grupo Integração",
+      "fileName": "Grupo Integração - Vem Adorar.mp3",
+      "collectionId": "grande-deus",
+      "md5": "1586022a6d706ff429449b6c5e750a82",
+      "size": 160539,
+      "url": "./sample-audio/c2.mp3"
+    },
+    {
+      "id": "d2",
+      "title": "Caminhando para o Lar",
+      "artist": "Grupo Integração",
+      "fileName": "Grupo Integração - Caminhando para o Lar.mp3",
+      "collectionId": "juntos-lar",
+      "md5": "eca3f1c49eda9db647a9479b75b757ce",
+      "size": 160539,
+      "url": "./sample-audio/d2.mp3"
+    },
+    {
+      "id": "d1",
+      "title": "Juntos Vamos ao Lar",
+      "artist": "Grupo Integração",
+      "fileName": "Grupo Integração - Juntos Vamos ao Lar.mp3",
+      "collectionId": "juntos-lar",
+      "md5": "f4dde1504a485dc51511b3b7903660a4",
+      "size": 160539,
+      "url": "./sample-audio/d1.mp3"
+    },
+    {
+      "id": "a1",
+      "title": "Consagração / Louvor ao Rei (Ao Vivo)",
+      "artist": "Aline Barros",
+      "fileName": "01 - Aline Barros - Consagração _ Louvor ao Rei (Ao Vivo).mp3",
+      "collectionId": "louvor-adoracao",
+      "md5": "dd4d7513db6a105e12225d0dec64f7c0",
+      "size": 160539,
+      "url": "./sample-audio/a1.mp3"
+    },
+    {
+      "id": "a2",
+      "title": "O Hino (Ao Vivo)",
+      "artist": "Fernandinho",
+      "fileName": "02 - Fernandinho - O Hino (Ao Vivo).mp3",
+      "collectionId": "louvor-adoracao",
+      "md5": "832aaca8906c26dc91b5541d3b85c00b",
+      "size": 160539,
+      "url": "./sample-audio/a2.mp3"
+    },
+    {
+      "id": "a3",
+      "title": "Meu Louvor Virá de Ti",
+      "artist": "Adhemar De Campos",
+      "fileName": "03 - Adhemar De Campos - Meu Louvor Virá de Ti.mp3",
+      "collectionId": "louvor-adoracao",
+      "md5": "ea2ea3976632de2923147340bf530ecc",
+      "size": 160539,
+      "url": "./sample-audio/a3.mp3"
+    },
+    {
+      "id": "b1",
+      "title": "Com Muito Louvor",
+      "artist": "Cassiane",
+      "fileName": "Cassiane - Com Muito Louvor.mp3",
+      "collectionId": "louvor-antigas",
+      "md5": "d7f9b521502e616e93c16aa06145ea4b",
+      "size": 160539,
+      "url": "./sample-audio/b1.mp3"
+    },
+    {
+      "id": "b2",
+      "title": "Hino da Vitória",
+      "artist": "Cassiane",
+      "fileName": "Cassiane - Hino da Vitória.mp3",
+      "collectionId": "louvor-antigas",
+      "md5": "db7e7a06cf1125a135a03f6e3468b713",
+      "size": 160539,
+      "url": "./sample-audio/b2.mp3"
+    },
+    {
+      "id": "b3",
+      "title": "Porque Ele Vive",
+      "artist": "Harpa Cristã",
+      "fileName": "Harpa Cristã - Porque Ele Vive.mp3",
+      "collectionId": "louvor-antigas",
+      "md5": "09d17689a13f35f819accf1aa8ee2c8d",
+      "size": 160539,
+      "url": "./sample-audio/b3.mp3"
+    },
+    {
+      "id": "e2",
+      "title": "Meu Barquinho",
+      "artist": "",
+      "fileName": "Meu Barquinho.mp3",
+      "collectionId": "hinos-infantis",
+      "md5": "b022fae63eead229058e39f6b9e3ddeb",
+      "size": 160539,
+      "url": "./sample-audio/e2.mp3"
+    },
+    {
+      "id": "e1",
+      "title": "Trem Feliz",
+      "artist": "",
+      "fileName": "Trem Feliz.mp3",
+      "collectionId": "hinos-infantis",
+      "md5": "70431b27646faefdeb4ea3eb27f4729e",
+      "size": 160539,
+      "url": "./sample-audio/e1.mp3"
+    },
+    {
+      "id": "f1",
+      "title": "Louvor Novo",
+      "artist": "",
+      "fileName": "Louvor Novo.mp3",
+      "collectionId": "lancamentos",
+      "md5": "9e98c569c4eb475d7a4fcd800391ba43",
+      "size": 160539,
+      "url": "./sample-audio/f1.mp3"
+    }
+  ],
+  "sample": true
+}

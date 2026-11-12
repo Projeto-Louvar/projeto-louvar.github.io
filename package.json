@@ -12,7 +12,8 @@
     "e2e": "playwright test",
     "sync": "tsx sync/main.ts",
     "sample": "tsx scripts/make-sample.ts",
-    "icons": "tsx scripts/make-icons.ts"
+    "icons": "tsx scripts/make-icons.ts",
+    "covers": "tsx scripts/make-covers.ts"
   },
   "dependencies": {
     "@fontsource/atkinson-hyperlegible": "^5.3.0",

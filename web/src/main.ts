@@ -7,7 +7,7 @@ import { detectPlatform } from './downloads';
 import { Player } from './player';
 import { renderPlayerBar } from './playerBar';
 import { parseHash } from './router';
-import { renderCollection, renderError, renderHome, renderSearch, type Ctx } from './views';
+import { renderCollection, renderCredits, renderError, renderHome, renderSearch, type Ctx } from './views';
 
 async function boot(): Promise<void> {
   const app = document.getElementById('app')!;
@@ -36,6 +36,7 @@ async function boot(): Promise<void> {
     const view =
       route.name === 'collection' ? renderCollection(ctx, route.id)
       : route.name === 'search' ? renderSearch(ctx, route.q)
+      : route.name === 'credits' ? renderCredits(ctx)
       : renderHome(ctx);
     outlet.replaceChildren(view);
     window.scrollTo(0, 0);

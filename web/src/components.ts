@@ -1,6 +1,7 @@
 import type { Collection, Track } from '../../shared/catalog';
 import type { CatalogIndex } from './catalogIndex';
 import { h } from './dom';
+import { coverFor } from './covers';
 import { collectionDownloadMode, downloadSequential } from './downloads';
 import { countLabel } from './format';
 import { hrefFor } from './router';
@@ -21,11 +22,21 @@ export function searchForm(q: string): HTMLFormElement {
   }, input, h('button', { type: 'submit', class: 'btn btn-primary' }, 'Buscar'));
 }
 
+/** Foto da capa (decorativa: o nome da coleção já está escrito ao lado ou embaixo). */
+export function coverImage(idx: CatalogIndex, id: string, cls: string): HTMLElement {
+  const cover = coverFor(idx, id);
+  return cover
+    ? h('img', { class: cls, src: cover.file, alt: '', loading: 'lazy', decoding: 'async', width: '600', height: '600' })
+    : h('span', { class: `${cls} is-empty`, 'aria-hidden': 'true' });
+}
+
 export function tileGrid(idx: CatalogIndex, cols: Collection[]): HTMLElement {
   return h('div', { class: 'tiles' }, ...cols.map((c) =>
-    h('a', { class: 'tile', href: hrefFor({ name: 'collection', id: c.id }), style: `--c:${c.color}` },
-      h('span', { class: 'tile-name' }, c.name),
-      h('span', { class: 'tile-count' }, countLabel(idx.totalTracks(c.id))))));
+    h('a', { class: 'tile', href: hrefFor({ name: 'collection', id: c.id }) },
+      coverImage(idx, c.id, 'tile-img'),
+      h('span', { class: 'tile-body' },
+        h('span', { class: 'tile-name' }, c.name),
+        h('span', { class: 'tile-count' }, countLabel(idx.totalTracks(c.id)))))));
 }
 
 export function trackList(ctx: Ctx, tracks: Track[]): HTMLElement {

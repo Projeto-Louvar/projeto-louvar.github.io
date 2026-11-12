@@ -5,7 +5,8 @@ import { countLabel } from './format';
 import type { Player } from './player';
 import { hrefFor } from './router';
 import { searchTracks } from './search';
-import { downloadAll, searchForm, tileGrid, trackList } from './components';
+import { coverImage, downloadAll, searchForm, tileGrid, trackList } from './components';
+import { creditList } from './covers';
 
 export interface Ctx {
   idx: CatalogIndex;
@@ -23,6 +24,19 @@ export function renderHome(ctx: Ctx): HTMLElement {
     searchForm(''),
     ...ctx.idx.homeSections().map((s) =>
       h('section', { class: 'section' }, h('h2', {}, s.title), tileGrid(ctx.idx, s.collections))),
+    h('p', { class: 'site-foot' }, h('a', { href: hrefFor({ name: 'credits' }) }, 'Créditos das fotos')),
+  );
+}
+
+export function renderCredits(ctx: Ctx): HTMLElement {
+  return page(
+    backLink(hrefFor({ name: 'home' })),
+    h('h1', { tabindex: '-1' }, 'Créditos das fotos'),
+    h('p', { class: 'note' }, 'As fotos das capas vêm do Wikimedia Commons e são de uso livre. Obrigado aos autores:'),
+    h('ul', { class: 'credits' }, ...creditList(ctx.idx).map((c) =>
+      h('li', {},
+        h('b', {}, c.collection), ': foto de ', c.artist, ' (',
+        h('a', { href: c.page, target: '_blank', rel: 'noopener' }, c.license), ')'))),
   );
 }
 
@@ -40,9 +54,11 @@ export function renderCollection(ctx: Ctx, id: string): HTMLElement {
   const back = ctx.idx.backTarget(id);
   return page(
     backLink(back ? hrefFor({ name: 'collection', id: back }) : hrefFor({ name: 'home' })),
-    h('header', { class: 'col-header', style: `--c:${c.color}` },
-      h('h1', { tabindex: '-1' }, c.name),
-      h('p', {}, countLabel(ctx.idx.totalTracks(id)))),
+    h('header', { class: 'col-header' },
+      coverImage(ctx.idx, id, 'col-img'),
+      h('div', { class: 'col-title' },
+        h('h1', { tabindex: '-1' }, c.name),
+        h('p', {}, countLabel(ctx.idx.totalTracks(id))))),
     tracks.length
       ? h('div', { class: 'actions' },
           h('button', { class: 'btn btn-primary btn-big', type: 'button', onclick: () => ctx.player.playQueue(tracks, 0) }, '▶ Tocar tudo'),

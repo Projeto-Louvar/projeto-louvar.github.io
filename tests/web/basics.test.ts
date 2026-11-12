@@ -26,9 +26,13 @@ describe('format', () => {
 
 describe('router', () => {
   it('ida e volta', () => {
-    for (const r of [{ name: 'home' }, { name: 'collection', id: '1a-B_c' }, { name: 'search', q: 'hino da vitória' }] as const) {
+    for (const r of [{ name: 'home' }, { name: 'collection', id: '1a-B_c' }, { name: 'search', q: 'hino da vitória' }, { name: 'credits' }] as const) {
       expect(parseHash(hrefFor(r))).toEqual(r);
     }
+  });
+  it('página de créditos', () => {
+    expect(hrefFor({ name: 'credits' })).toBe('#/creditos');
+    expect(parseHash('#/creditos')).toEqual({ name: 'credits' });
   });
   it('hash desconhecido ou vazio vai para o início', () => {
     expect(parseHash('')).toEqual({ name: 'home' });

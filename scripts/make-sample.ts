@@ -68,5 +68,6 @@ async function zipSample(): Promise<void> {
 await zipSample();
 const col = catalog.collections.find((c) => c.id === 'louvor-adoracao')!;
 col.zipUrls = ['./sample-audio/louvor-adoracao.zip'];
-writeFileSync('web/public/catalog.json', JSON.stringify(catalog, null, 2));
+// O site publicado usa o catálogo real (gerado pelo sync); o de amostra fica para os testes E2E.
+writeFileSync('e2e/fixtures/catalog.json', JSON.stringify(catalog, null, 2));
 console.log(`Amostra: ${catalog.tracks.length} faixas, ${catalog.collections.length} coleções.`);

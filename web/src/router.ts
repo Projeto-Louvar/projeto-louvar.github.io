@@ -1,8 +1,9 @@
-export type Route = { name: 'home' } | { name: 'collection'; id: string } | { name: 'search'; q: string };
+export type Route = { name: 'home' } | { name: 'collection'; id: string } | { name: 'search'; q: string } | { name: 'credits' };
 
 export function parseHash(hash: string): Route {
   try {
     const h = hash.replace(/^#/, '');
+    if (h === '/creditos') return { name: 'credits' };
     const m = h.match(/^\/c\/([^/?]+)$/);
     if (m) return { name: 'collection', id: decodeURIComponent(m[1]) };
     if (h === '/busca' || h.startsWith('/busca?')) {
@@ -22,5 +23,7 @@ export function hrefFor(r: Route): string {
       return `#/c/${encodeURIComponent(r.id)}`;
     case 'search':
       return `#/busca?q=${encodeURIComponent(r.q)}`;
+    case 'credits':
+      return '#/creditos';
   }
 }
