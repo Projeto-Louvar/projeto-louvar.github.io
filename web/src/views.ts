@@ -3,7 +3,7 @@ import type { CatalogIndex } from './catalogIndex';
 import type { Platform } from './downloads';
 import { countLabel } from './format';
 import type { InstallState } from './install';
-import { installBanner, installPanel } from './installView';
+import { installPanel } from './installView';
 import type { Player } from './player';
 import { hrefFor } from './router';
 import { searchTracks } from './search';
@@ -24,7 +24,6 @@ const backLink = (href: string) => h('a', { class: 'btn back', href }, '← Volt
 export function renderHome(ctx: Ctx): HTMLElement {
   return page(
     h('h1', { class: 'site-title', tabindex: '-1' }, 'Projeto Louvar'),
-    installBanner(ctx),
     searchForm(''),
     ...ctx.idx.homeSections().map((s) =>
       h('section', { class: 'section' }, h('h2', {}, s.title), tileGrid(ctx.idx, s.collections))),

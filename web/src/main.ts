@@ -6,6 +6,7 @@ import { CatalogIndex, loadCatalog } from './catalogIndex';
 import { h } from './dom';
 import { detectPlatform } from './downloads';
 import { InstallState } from './install';
+import { mountInstallSheet } from './installView';
 import { Player } from './player';
 import { renderPlayerBar } from './playerBar';
 import { parseHash } from './router';
@@ -50,6 +51,7 @@ async function boot(): Promise<void> {
   };
   window.addEventListener('hashchange', render);
   render();
+  mountInstallSheet(install, platform);
 
   if ('serviceWorker' in navigator && import.meta.env.PROD) {
     navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).catch(() => undefined);

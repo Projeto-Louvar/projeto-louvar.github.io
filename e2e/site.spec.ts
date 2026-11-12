@@ -1,10 +1,21 @@
-import { expect, test } from '@playwright/test';
+import { devices, expect, test, type Browser } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
 // Os testes usam sempre o catálogo de amostra, não o acervo real que o sync grava em web/public.
 test.beforeEach(async ({ page }) => {
   await page.route('**/catalog.json', (route) => route.fulfill({ path: 'e2e/fixtures/catalog.json' }));
+  // A janela "Instalar" do primeiro acesso cobriria os botões; os testes dela usam um celular novo.
+  await page.addInitScript(() => localStorage.setItem('louvar.instalar.adiado', String(Date.now())));
 });
+
+// Celular "recém-chegado": sem nada guardado, como no primeiro acesso.
+async function freshPhone(browser: Browser) {
+  const { defaultBrowserType: _, ...pixel } = devices['Pixel 7'];
+  const ctx = await browser.newContext({ ...pixel, baseURL: 'http://localhost:4173' });
+  const page = await ctx.newPage();
+  await page.route('**/catalog.json', (route) => route.fulfill({ path: 'e2e/fixtures/catalog.json' }));
+  return { ctx, page };
+}
 
 test('início mostra seções e capas', async ({ page }) => {
   await page.goto('/');
@@ -111,24 +122,36 @@ test('página de créditos lista o autor de cada foto', async ({ page }) => {
 });
 
 test.describe('instalar no celular', () => {
-  test('celular: aviso leva ao passo a passo; "Agora não" esconde e é lembrado', async ({ page }, info) => {
-    test.skip(info.project.name !== 'celular', 'só no celular');
+  test('primeiro acesso: janela sobe de baixo; "Agora não" fecha e é lembrado', async ({ browser }) => {
+    const { ctx, page } = await freshPhone(browser);
     await page.goto('/');
-    const banner = page.getByRole('complementary', { name: 'Instalar no celular' });
-    await expect(banner).toBeVisible();
-    await banner.getByRole('link', { name: 'Instalar no celular' }).click();
-    await expect(page.getByRole('heading', { level: 1, name: 'Instalar no celular' })).toBeVisible();
-    await expect(page.locator('.steps').first()).toContainText('Instalar app');
-    await page.getByRole('link', { name: '← Voltar' }).click();
-    await page.getByRole('button', { name: 'Agora não' }).click();
-    await expect(banner).toBeHidden();
+    const sheet = page.getByRole('dialog', { name: 'Instale o Louvar no celular' });
+    await expect(sheet).toBeVisible();
+    const box = (await sheet.boundingBox())!;
+    expect(box.y + box.height).toBeGreaterThan(page.viewportSize()!.height - 4); // encostada embaixo
+    const [agora, instalar] = [sheet.getByRole('button', { name: 'Agora não' }), sheet.getByRole('button', { name: 'Instalar' })];
+    expect((await agora.boundingBox())!.y).toBe((await instalar.boundingBox())!.y); // lado a lado
+    await agora.click();
+    await expect(sheet).toBeHidden();
     await page.reload();
     await expect(page.getByRole('heading', { level: 1, name: 'Projeto Louvar' })).toBeVisible();
-    await expect(banner).toBeHidden();
+    await page.waitForTimeout(1600);
+    await expect(sheet).toBeHidden();
+    await ctx.close();
   });
 
-  test('janela de instalação do Chrome: botão abre e confirma', async ({ page }, info) => {
-    test.skip(info.project.name !== 'celular', 'só no celular');
+  test('janela: "Instalar" sem convite do navegador leva ao passo a passo', async ({ browser }) => {
+    const { ctx, page } = await freshPhone(browser);
+    await page.goto('/');
+    await page.getByRole('dialog').getByRole('button', { name: 'Instalar' }).click();
+    await expect(page.getByRole('heading', { level: 1, name: 'Instalar no celular' })).toBeVisible();
+    await expect(page.locator('.steps').first()).toContainText('Instalar app');
+    await expect(page.getByRole('dialog')).toBeHidden();
+    await ctx.close();
+  });
+
+  test('janela: com o convite do Chrome, instala e confirma', async ({ browser }) => {
+    const { ctx, page } = await freshPhone(browser);
     await page.goto('/');
     await page.evaluate(() => {
       const e = Object.assign(new Event('beforeinstallprompt', { cancelable: true }), {
@@ -137,10 +160,13 @@ test.describe('instalar no celular', () => {
       });
       window.dispatchEvent(e);
     });
-    const banner = page.getByRole('complementary', { name: 'Instalar no celular' });
-    await banner.getByRole('button', { name: 'Instalar no celular' }).click();
-    await expect(banner).toContainText('Pronto! O Louvar já está na tela do seu celular');
+    const sheet = page.getByRole('dialog');
+    await sheet.getByRole('button', { name: 'Instalar' }).click();
+    await expect(sheet).toContainText('Pronto! O Louvar já está na tela do seu celular');
     expect(await page.evaluate(() => (window as unknown as { asked: boolean }).asked)).toBe(true);
+    await sheet.getByRole('button', { name: 'Fechar' }).click();
+    await expect(sheet).toBeHidden();
+    await ctx.close();
   });
 
   test('iPhone: passo a passo do Safari', async ({ browser }) => {
@@ -161,7 +187,8 @@ test.describe('instalar no celular', () => {
     test.skip(info.project.name !== 'computador', 'só no computador');
     await page.goto('/');
     await expect(page.getByRole('heading', { level: 1, name: 'Projeto Louvar' })).toBeVisible();
-    await expect(page.getByRole('complementary', { name: 'Instalar no celular' })).toBeHidden();
+    await page.waitForTimeout(1600);
+    await expect(page.getByRole('dialog')).toBeHidden();
     await page.getByRole('link', { name: 'Instalar no celular' }).click();
     await expect(page.getByText('Abra este mesmo endereço no seu celular')).toBeVisible();
   });
