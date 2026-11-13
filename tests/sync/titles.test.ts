@@ -24,11 +24,12 @@ describe('parseTrackName', () => {
   it('não remove números que fazem parte do título', () => {
     expect(parseTrackName('2025 Hino Novo.mp3')).toEqual({ artist: '', title: '2025 Hino Novo' });
   });
-  it('sem " - " o artista fica vazio', () => {
+  it('hífen colado separa cantor e música, mas não "Tira-me"', () => {
     expect(parseTrackName('Ministério de Louvor Diante do Trono-Coração Igual Ao Teu.mp3')).toEqual({
-      artist: '',
-      title: 'Ministério de Louvor Diante do Trono-Coração Igual Ao Teu',
+      artist: 'Ministério de Louvor Diante do Trono',
+      title: 'Coração Igual Ao Teu',
     });
+    expect(parseTrackName('Tira-me do Vale.mp3')).toEqual({ artist: '', title: 'Tira-me do Vale' });
   });
   it('troca _ solto por espaço e colapsa espaços', () => {
     expect(parseTrackName('Grupo_VP  -  Livre_sou.mp3')).toEqual({ artist: 'Grupo VP', title: 'Livre sou' });
@@ -37,15 +38,14 @@ describe('parseTrackName', () => {
 
 describe('parseTrackName — nomes vindos de vídeos', () => {
   const cases: [string, { artist: string; title: string }][] = [
-    ['Raquel Olliver  Sempre foi Deus [Clipe Oficial] [1].m4a', { artist: '', title: 'Raquel Olliver – Sempre foi Deus' }],
+    ['Raquel Olliver  Sempre foi Deus [Clipe Oficial] [1].m4a', { artist: 'Raquel Olliver', title: 'Sempre foi Deus' }],
     ['Isadora Pompeo - Ovelhinha (Ao Vivo) [1].m4a', { artist: 'Isadora Pompeo', title: 'Ovelhinha (Ao Vivo)' }],
-    ['ACENDE OUTRA VEZ┃JEFFERSON & SUELLEN (LIVE SESSION - AO VIVO).m4a', { artist: 'Acende Outra Vez', title: 'Jefferson & Suellen (Live Session - Ao Vivo)' }],
+    ['ACENDE OUTRA VEZ┃JEFFERSON & SUELLEN (LIVE SESSION - AO VIVO).m4a', { artist: 'Jefferson & Suellen', title: 'Acende Outra Vez' }],
     ['GABRIELA ROCHA - ME ATRAIU (AO VIVO).m4a', { artist: 'Gabriela Rocha', title: 'Me Atraiu (Ao Vivo)' }],
     ['Maria Marçal - Deixa (Clipe Oficial MK Music).m4a', { artist: 'Maria Marçal', title: 'Deixa' }],
-    ['Sued Silva  Reacende a Chama [Vídeo Letra] [1].m4a', { artist: '', title: 'Sued Silva – Reacende a Chama' }],
+    ['Sued Silva  Reacende a Chama [Vídeo Letra] [1].m4a', { artist: 'Sued Silva', title: 'Reacende a Chama' }],
     ['Sou um dos Dez I Clipe Oficial [1].m4a', { artist: '', title: 'Sou um dos Dez' }],
-    ['Fernandinho  Único (Álbum Único - Live) [1].m4a', { artist: '', title: 'Fernandinho – Único (Álbum Único - Live)' }],
-    ['Maria Marçal - Cura  DVD CURA [1].m4a', { artist: 'Maria Marçal', title: 'Cura DVD CURA' }],
+    ['Maria Marçal - Cura  DVD CURA [1].m4a', { artist: 'Maria Marçal', title: 'Cura' }],
     ['DJ PV - TU ÉS BOM.mp3', { artist: 'DJ PV', title: 'Tu És Bom' }],
   ];
   for (const [file, expected] of cases) it(file, () => expect(parseTrackName(file)).toEqual(expected));

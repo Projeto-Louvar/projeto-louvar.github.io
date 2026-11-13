@@ -1,7 +1,8 @@
 import { createHash } from 'node:crypto';
 import type { Catalog, Collection, Track } from '../shared/catalog';
 import { safeAssetName, slugify } from './names';
-import { audioNameFor, parseTrackName } from './titles';
+import { titlesFor, type TitleOverrides } from './cleanTitles';
+import { audioNameFor } from './titles';
 import type { DriveSnapshot, TreeCollection } from './tree';
 
 export const PALETTE = ['#1F4E79', '#7A1F3D', '#2E6B3A', '#8A4B0F', '#4B2E83', '#0F6E6E', '#9B2C2C', '#3D4F5C'];
@@ -27,8 +28,11 @@ export function planSync(
   prev: Catalog | null,
   repoBase: string,
   now: string,
+  titleOverrides: TitleOverrides = {},
 ): SyncPlan {
   const files = new Map(snap.files.map((f) => [f.id, f]));
+  // Nome da música e cantor, limpos com o contexto da pasta e do acervo inteiro
+  const titles = titlesFor(snap.files.map((f) => ({ id: f.id, name: f.convert ? audioNameFor(f.name) : f.name, folderId: f.parentId })), titleOverrides);
   const prevTracks = new Map((prev?.tracks ?? []).map((t) => [t.id, t]));
   const prevCols = new Map((prev?.collections ?? []).map((c) => [c.id, c]));
   const urlByMd5 = new Map<string, string>();
@@ -64,7 +68,7 @@ export function planSync(
         uploads.push({ fileId: f.id, fileName: f.name, tag, assetName, url, size: f.size, ...(f.convert ? { convert: true } : {}) });
         urlByMd5.set(f.md5, url);
       }
-      const { title, artist } = parseTrackName(f.name);
+      const { title, artist } = titles.get(f.id)!;
       const fileName = f.convert ? audioNameFor(f.name) : f.name;
       // tamanho do áudio já convertido, se conhecido (o do Drive é o do vídeo)
       const size = f.convert && old?.url === url ? old.size : f.size;

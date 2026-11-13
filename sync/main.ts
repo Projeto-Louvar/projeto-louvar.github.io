@@ -37,7 +37,9 @@ async function main(): Promise<void> {
 
   const snap = await snapshotDrive(drive, env('ROOT_FOLDER_ID', '1ak8DwNK4UeRQmKLpKhEao-XdyEj0Z8EC'));
   const tree = buildTree(snap);
-  const plan = planSync(snap, tree, prev, gh.repoBase, new Date().toISOString());
+  // Correções manuais de nomes: id do arquivo no Drive → { title, artist }
+  const overrides = existsSync('sync/title-overrides.json') ? JSON.parse(readFileSync('sync/title-overrides.json', 'utf8')) : {};
+  const plan = planSync(snap, tree, prev, gh.repoBase, new Date().toISOString(), overrides);
   const nameOf = new Map(tree.map((c) => [`c-${c.id}`, c.name]));
   const tmp = mkdtempSync(join(tmpdir(), 'louvores-'));
 
