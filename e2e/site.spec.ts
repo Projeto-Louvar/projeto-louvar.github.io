@@ -236,8 +236,12 @@ test.describe('bônus: versão pública e versão completa', () => {
     await expect(page.getByRole('heading', { level: 2, name: 'Conteúdo bônus' })).toBeVisible();
     await expect(page.getByText('Envie o comprovante pelo WhatsApp.')).toBeVisible();
     await expect(page.getByRole('button', { name: /^Tocar/ })).toHaveCount(0);
+    // na busca, a música do bônus aparece trancada, com o caminho para liberar
     await page.goto('/#/busca?q=louvor novo');
-    await expect(page.getByText('Nenhuma música encontrada')).toBeVisible();
+    await expect(page.locator('.track.is-locked .track-title')).toHaveText('Louvor Novo');
+    await expect(page.getByRole('button', { name: 'Tocar Louvor Novo' })).toHaveCount(0);
+    await page.getByRole('link', { name: 'Ver como liberar Louvor Novo' }).click();
+    await expect(page.getByRole('heading', { level: 1, name: 'Bônus' })).toBeVisible();
   });
 
   test('versão completa (endereço secreto): lançamentos tocam normalmente', async ({ page }) => {
@@ -250,14 +254,20 @@ test.describe('bônus: versão pública e versão completa', () => {
 
   test('o catálogo publicado na versão pública não traz os links dos bônus', async ({ request }) => {
     // Vale para o acervo real que foi publicado: nenhuma música de pasta de lançamentos no catálogo público
-    type C = { collections: { id: string; name: string; childIds: string[] }[]; tracks: { collectionId: string }[] };
+    type C = { collections: { id: string; name: string; childIds: string[] }[]; tracks: { collectionId: string; md5: string; url: string }[] };
     const pub = (await (await request.get('/catalog.json')).json()) as C;
     const full = (await (await request.get('/completa-teste/catalog.json')).json()) as C;
     const locked = new Set<string>();
     const mark = (id: string) => { locked.add(id); full.collections.find((c) => c.id === id)?.childIds.forEach(mark); };
     full.collections.filter((c) => BONUS_PATTERN.test(c.name)).forEach((c) => mark(c.id));
-    expect(pub.tracks.filter((t) => locked.has(t.collectionId))).toEqual([]);
-    expect(pub.tracks.length).toBe(full.tracks.filter((t) => !locked.has(t.collectionId)).length);
+    // músicas do bônus podem aparecer (trancadas, na busca), mas sem o link do áudio
+    expect(pub.tracks.filter((t) => locked.has(t.collectionId) && (t as { url?: string }).url)).toEqual([]);
+    // nenhuma música liberada na versão grátis tem o mesmo áudio de uma do bônus (exceto Hinos Infantis)
+    type T = { collectionId: string; md5: string };
+    const bonusMd5 = new Set((full.tracks as T[]).filter((t) => locked.has(t.collectionId)).map((t) => t.md5));
+    const freeCols = new Map(full.collections.map((c) => [c.id, c.name]));
+    const leaked = (pub.tracks as T[]).filter((t) => !locked.has(t.collectionId) && bonusMd5.has(t.md5) && !/infantis/i.test(freeCols.get(t.collectionId) ?? ''));
+    expect(leaked).toEqual([]);
   });
 });
 
@@ -282,4 +292,10 @@ test('versão completa: página do Bônus libera e toca aleatório', async ({ pa
   await expect(page.getByRole('heading', { level: 2, name: 'Conteúdo bônus' })).toHaveCount(0);
   await page.getByRole('button', { name: 'Tocar aleatório' }).click();
   await expect(page.getByRole('region', { name: 'Tocador' }).locator('.pb-title')).toHaveText('Louvor Novo');
+});
+
+test('na busca, música do bônus não parece estar tocando', async ({ page }) => {
+  await page.goto('/#/busca?q=louvor novo');
+  await expect(page.locator('.track.is-locked')).toHaveCount(1);
+  await expect(page.locator('.track.is-current')).toHaveCount(0);
 });

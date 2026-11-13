@@ -64,24 +64,42 @@ export function tileGrid(idx: CatalogIndex, cols: Collection[], extra: HTMLEleme
   return h('div', { class: 'tiles' }, ...tiles);
 }
 
-export function trackList(ctx: Ctx, tracks: Track[]): HTMLElement {
-  const list = h('ol', { class: 'tracks' }, ...tracks.map((t, i) =>
-    h('li', { class: 'track', 'data-id': t.id },
+export function trackList(ctx: Ctx, all: Track[]): HTMLElement {
+  // músicas do bônus (versão grátis) aparecem trancadas e ficam fora da fila do tocador
+  const tracks = all.filter((t) => !ctx.idx.isLockedTrack(t));
+  let n = 0;
+  const list = h('ol', { class: 'tracks' }, ...all.map((t) => ctx.idx.isLockedTrack(t) ? lockedRow(t, ++n) : (() => {
+    const i = tracks.indexOf(t);
+    return h('li', { class: 'track', 'data-id': t.id },
       h('button', {
         class: 'track-play', type: 'button', 'aria-label': `Tocar ${t.title}`,
         onclick: () => ctx.player.playQueue(tracks, i),
       },
-        h('span', { class: 'track-num', 'aria-hidden': 'true' }, i + 1),
+        h('span', { class: 'track-num', 'aria-hidden': 'true' }, ++n),
         h('span', { class: 'track-text' },
           h('span', { class: 'track-title' }, t.title),
           t.artist ? h('span', { class: 'track-artist' }, t.artist) : null)),
-      h('a', { class: 'btn btn-small', href: t.url, download: t.fileName, 'aria-label': `Baixar ${t.title}` }, 'Baixar'))));
+      h('a', { class: 'btn btn-small', href: t.url, download: t.fileName, 'aria-label': `Baixar ${t.title}` }, 'Baixar'));
+  })()));
   ctx.onCleanup(ctx.player.subscribe((s) => {
     for (const li of Array.from(list.children) as HTMLElement[]) {
-      li.classList.toggle('is-current', li.dataset.id === s.current?.id);
+      li.classList.toggle('is-current', !!li.dataset.id && li.dataset.id === s.current?.id); // linha trancada não tem id
     }
   }));
   return list;
+}
+
+/** Música do bônus na busca da versão grátis: nome, cadeado e botão para ver como liberar. */
+function lockedRow(t: Track, n: number): HTMLElement {
+  const lock = h('span', { class: 'track-lock', 'aria-hidden': 'true' });
+  lock.innerHTML = '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-1V7a5 5 0 0 0-5-5zm-3 8V7a3 3 0 0 1 6 0v3z"/></svg>';
+  return h('li', { class: 'track is-locked' },
+    h('div', { class: 'track-play' },
+      h('span', { class: 'track-num', 'aria-hidden': 'true' }, n),
+      h('span', { class: 'track-text' },
+        h('span', { class: 'track-title' }, lock, t.title),
+        h('span', { class: 'track-artist' }, t.artist ? `${t.artist} · No Bônus` : 'No Bônus'))),
+    h('a', { class: 'btn btn-small btn-unlock', href: hrefFor({ name: 'bonus' }), 'aria-label': `Ver como liberar ${t.title}` }, 'Ver como liberar'));
 }
 
 export function downloadAll(ctx: Ctx, c: Collection, tracks: Track[]): HTMLElement {

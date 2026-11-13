@@ -4,7 +4,7 @@
 // No GitHub Actions o endereço secreto vem do segredo FULL_PATH, que não fica no repositório.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { build } from 'vite';
-import { publicCatalog } from '../shared/bonus';
+import { fullCatalog, publicCatalog } from '../shared/bonus';
 import type { Catalog } from '../shared/catalog';
 
 const arg = process.argv.find((a) => a.startsWith('--full-path='))?.split('=')[1];
@@ -22,6 +22,7 @@ console.log('Versão pública pronta em dist/');
 if (fullPath) {
   process.env.VITE_EDITION = 'completa';
   await build({ build: { outDir: `../dist/${fullPath}`, emptyOutDir: true }, logLevel: 'warn' });
+  writeFileSync(`dist/${fullPath}/catalog.json`, JSON.stringify(fullCatalog(catalog)));
   console.log('Versão completa pronta (endereço secreto).');
 } else {
   console.log('Sem FULL_PATH: versão completa não gerada.');

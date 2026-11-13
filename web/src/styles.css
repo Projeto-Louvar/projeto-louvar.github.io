@@ -159,6 +159,10 @@ h2 { font-family: var(--display); font-weight: 700; font-size: 1.4rem; margin: 3
 .track-title { font-weight: 700; overflow-wrap: anywhere; }
 .track-artist { color: var(--muted); font-size: 0.9rem; overflow-wrap: anywhere; }
 .track.is-current { background: var(--accent-soft); }
+.track.is-locked .track-play { cursor: default; }
+.track.is-locked .track-title { color: var(--muted); display: flex; align-items: center; gap: 8px; }
+.track-lock svg { display: block; width: 18px; height: 18px; color: var(--accent); flex: none; }
+.btn-unlock { white-space: normal; max-width: 9em; line-height: 1.15; }
 .track.is-current .track-title { color: var(--accent); }
 
 .player {

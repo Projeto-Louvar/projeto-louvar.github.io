@@ -1,4 +1,4 @@
-import { BONUS_PATTERN, bonusIds } from '../../shared/bonus';
+import { BONUS_PATTERN, bonusIds, withExclusiveBonus } from '../../shared/bonus';
 import type { Catalog, Collection, Track } from '../../shared/catalog';
 
 export { BONUS_PATTERN };
@@ -23,12 +23,18 @@ export class CatalogIndex {
   private totals = new Map<string, number>();
   private locked: Set<string>;
 
+  readonly data: Catalog;
+  private lockedTrks: Track[];
+
   /** lockBonus: versão pública, em que as coleções bônus aparecem trancadas. */
-  constructor(readonly data: Catalog, opts: { lockBonus?: boolean } = {}) {
+  constructor(catalog: Catalog, opts: { lockBonus?: boolean } = {}) {
+    // Música repetida fica só no bônus (o build já aplica; aqui garante o mesmo em testes e no modo dev)
+    const data = (this.data = withExclusiveBonus(catalog));
     this.cols = new Map(data.collections.map((c) => [c.id, { ...c, name: displayName(c.name) }]));
     this.locked = opts.lockBonus ? bonusIds(data.collections, data.rootId) : new Set();
-    // Na versão trancada, as músicas bônus somem da busca, do tocador e das listas
+    // Na versão trancada, as músicas bônus não tocam nem entram nas listas; só aparecem trancadas na busca
     this.trks = new Map(data.tracks.filter((t) => !this.locked.has(t.collectionId)).map((t) => [t.id, t]));
+    this.lockedTrks = data.tracks.filter((t) => this.locked.has(t.collectionId));
   }
 
   get root(): Collection {
@@ -54,6 +60,17 @@ export class CatalogIndex {
   }
   private playable?: Track[];
 
+  /** Para a busca: as liberadas e, na versão grátis, também as do bônus (que aparecem trancadas). */
+  get searchableTracks(): Track[] {
+    return (this.searchable ??= [...this.playableTracks, ...this.lockedTrks]);
+  }
+  private searchable?: Track[];
+
+  /** A música é do bônus e está trancada nesta versão? */
+  isLockedTrack(t: Track): boolean {
+    return this.locked.has(t.collectionId);
+  }
+
   /** Todas as músicas da coleção e das subpastas, sem repetir o mesmo áudio. */
   allTracksUnder(id: string): Track[] {
     const out: Track[] = [];
@@ -71,8 +88,10 @@ export class CatalogIndex {
   }
 
   childrenOf(id: string): Collection[] {
-    return (this.cols.get(id)?.childIds ?? []).map((c) => this.cols.get(c)).filter((c): c is Collection => !!c);
+    // coleção que ficou vazia (todas as músicas foram para o bônus) não aparece
+    return (this.cols.get(id)?.childIds ?? []).map((c) => this.cols.get(c)).filter((c): c is Collection => !!c && this.totalTracks(c.id) > 0);
   }
+
 
   totalTracks(id: string): number {
     const hit = this.totals.get(id);

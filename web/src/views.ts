@@ -184,7 +184,7 @@ function pixBox(pix: NonNullable<typeof PIX>): HTMLElement {
 }
 
 export function renderSearch(ctx: Ctx, q: string): HTMLElement {
-  const results = q ? searchTracks(ctx.idx.playableTracks, q) : [];
+  const results = q ? searchTracks(ctx.idx.searchableTracks, q) : [];
   const summary = !q
     ? null
     : results.length
