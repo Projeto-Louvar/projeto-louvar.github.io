@@ -1,7 +1,12 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import sharp from 'sharp';
 
-const note = '<path fill="#D9B65C" d="M352 96v220a64 64 0 1 1-40-59V160l-136 30v170a64 64 0 1 1-40-59V158z"/>';
+// Nota musical cuja haste forma uma cruz. Deslocada para o centro exato do ícone (medido pelo contorno).
+const note = `<g transform="translate(-13 -3)" fill="#D9B65C">
+    <rect x="268" y="92" width="34" height="270" rx="4"/>
+    <rect x="200" y="148" width="170" height="34" rx="4"/>
+    <ellipse cx="236" cy="372" rx="70" ry="50" transform="rotate(-24 236 372)"/>
+  </g>`;
 const wrap = (rx: string) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <rect width="512" height="512"${rx} fill="#0F1013"/>
   ${note}

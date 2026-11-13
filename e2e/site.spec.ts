@@ -255,3 +255,11 @@ test.describe('bônus: versão pública e versão completa', () => {
     expect(pub.tracks.length).toBe(full.tracks.filter((t) => !locked.has(t.collectionId)).length);
   });
 });
+
+test('tocar aleatório: em coleção com subpastas embaralha tudo o que está dentro', async ({ page }) => {
+  await page.goto('/#/c/grupo-integracao');
+  await page.getByRole('button', { name: 'Tocar aleatório' }).click();
+  const bar = page.getByRole('region', { name: 'Tocador' });
+  await expect(bar).toBeVisible();
+  await expect(bar.locator('.pb-title')).not.toBeEmpty();
+});

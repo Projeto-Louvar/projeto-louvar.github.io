@@ -99,3 +99,21 @@ describe('seções: biblioteca e bônus', () => {
     expect(displayName('9. Lançamentos 2026')).toBe('9. Lançamentos 2027');
   });
 });
+
+describe('tocar aleatório', () => {
+  it('embaralha sem perder nem repetir músicas', async () => {
+    const { shuffled } = await import('../../web/src/shuffle');
+    const items = Array.from({ length: 50 }, (_, i) => i);
+    const out = shuffled(items);
+    expect(out).toHaveLength(50);
+    expect([...out].sort((a, b) => a - b)).toEqual(items);
+    expect(items[0]).toBe(0); // não mexe na lista original
+    let seed = 1;
+    const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    expect(shuffled(items, rand)).not.toEqual(items);
+  });
+  it('junta as músicas das subpastas, sem repetir o mesmo áudio', () => {
+    expect(idx.allTracksUnder('A').map((t) => t.id)).toEqual(['t1', 't2', 't3']);
+    expect(idx.allTracksUnder('R').map((t) => t.id)).toEqual(['t1', 't2', 't3', 't4', 't5']);
+  });
+});

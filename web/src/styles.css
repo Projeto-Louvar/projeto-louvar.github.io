@@ -63,6 +63,7 @@ h2 { font-family: var(--display); font-weight: 700; font-size: 1.4rem; margin: 3
 .btn-primary { background: var(--accent); color: var(--on-accent); }
 .btn-primary:hover { background: var(--focus); }
 .btn-big { min-height: 64px; font-size: 1.1rem; }
+.btn-icon svg { display: block; width: 24px; height: 24px; fill: currentColor; }
 .btn-small { min-height: 56px; padding: 0 14px; font-size: 0.9rem; flex: none; }
 .btn:disabled { opacity: 0.6; cursor: default; }
 
@@ -139,7 +140,8 @@ h2 { font-family: var(--display); font-weight: 700; font-size: 1.4rem; margin: 3
 .credits { list-style: none; padding: 0; margin: 16px 0 0; font-size: 1rem; display: grid; gap: 10px; }
 .credits li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; padding: 12px 14px; border: 2px solid var(--line); border-radius: var(--radius); background: var(--surface); }
 .credits p { flex: 1 1 220px; min-width: 0; margin: 0; overflow-wrap: anywhere; }
-.actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; }
+.actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; margin-bottom: 24px; }
+.actions + .tracks { margin-top: 0; }
 .zip-links { display: flex; flex-wrap: wrap; gap: 12px; }
 .download-all .note { margin: 8px 0 0; max-width: 34ch; }
 

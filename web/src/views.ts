@@ -9,6 +9,8 @@ import { hrefFor } from './router';
 import { searchTracks } from './search';
 import { coverImage, downloadAll, lockBadge, searchForm, tileGrid, trackList } from './components';
 import { FULL_EDITION, PIX, PRICES, WHATSAPP_URL } from './edition';
+import { ICONS } from './icons';
+import { shuffled } from './shuffle';
 import { creditList } from './covers';
 
 export interface Ctx {
@@ -78,16 +80,29 @@ export function renderCollection(ctx: Ctx, id: string): HTMLElement {
       h('div', { class: 'col-title' },
         h('h1', { tabindex: '-1' }, c.name),
         h('p', {}, countLabel(ctx.idx.totalTracks(id))))),
-    tracks.length
+    tracks.length || kids.length
       ? h('div', { class: 'actions' },
-          h('button', { class: 'btn btn-primary btn-big', type: 'button', onclick: () => ctx.player.playQueue(tracks, 0) }, '▶ Tocar tudo'),
-          downloadAll(ctx, c, tracks))
+          tracks.length
+            ? h('button', { class: 'btn btn-primary btn-big', type: 'button', onclick: () => ctx.player.playQueue(tracks, 0) }, '▶ Tocar tudo')
+            : null,
+          shuffleButton(ctx, id, !tracks.length),
+          tracks.length ? downloadAll(ctx, c, tracks) : null)
       : null,
     kids.length
       ? h('section', { class: 'section' }, tracks.length ? h('h2', {}, 'Coleções') : null, tileGrid(ctx.idx, kids))
       : null,
     tracks.length ? trackList(ctx, tracks) : null,
   );
+}
+
+/** "Tocar aleatório": embaralha todas as músicas da coleção, inclusive das subpastas. */
+function shuffleButton(ctx: Ctx, id: string, primary: boolean): HTMLElement {
+  const icon = h('span', { class: 'btn-icon', 'aria-hidden': 'true' });
+  icon.innerHTML = ICONS.shuffle;
+  return h('button', {
+    class: primary ? 'btn btn-primary btn-big' : 'btn btn-big', type: 'button',
+    onclick: () => { const all = ctx.idx.allTracksUnder(id); if (all.length) ctx.player.playQueue(shuffled(all), 0); },
+  }, icon, 'Tocar aleatório');
 }
 
 function renderLocked(ctx: Ctx, id: string, back: string | null): HTMLElement {

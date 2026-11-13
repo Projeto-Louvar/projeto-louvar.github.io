@@ -54,6 +54,18 @@ export class CatalogIndex {
   }
   private playable?: Track[];
 
+  /** Todas as músicas da coleção e das subpastas, sem repetir o mesmo áudio. */
+  allTracksUnder(id: string): Track[] {
+    const out: Track[] = [];
+    const seen = new Set<string>();
+    const walk = (cid: string) => {
+      for (const t of this.tracksOf(cid)) if (!seen.has(t.md5)) { seen.add(t.md5); out.push(t); }
+      for (const k of this.cols.get(cid)?.childIds ?? []) walk(k);
+    };
+    walk(id);
+    return out;
+  }
+
   tracksOf(id: string): Track[] {
     return (this.cols.get(id)?.trackIds ?? []).map((t) => this.trks.get(t)).filter((t): t is Track => !!t);
   }
