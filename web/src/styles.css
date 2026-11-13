@@ -170,7 +170,7 @@ h2 { font-family: var(--display); font-weight: 700; font-size: 1.4rem; margin: 3
 .pb-artist { margin: 0; min-height: 1.2em; font-size: 0.85rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pb-error { margin: 0; color: var(--danger); font-size: 0.85rem; }
 .pb-error:empty { display: none; }
-.pb-progress { display: flex; align-items: center; gap: 10px; margin: 0; }
+.pb-progress { display: flex; align-items: center; gap: 10px; margin-block: 0; }
 .pb-range {
   flex: 1; min-width: 0; height: 56px; margin: 0; padding: 0; background: transparent;
   -webkit-appearance: none; appearance: none; cursor: pointer;
@@ -190,6 +190,27 @@ h2 { font-family: var(--display); font-weight: 700; font-size: 1.4rem; margin: 3
 }
 .pb-play { min-width: 96px; font-weight: 700; color: var(--on-accent); background: var(--accent); border-color: var(--accent); }
 .pb-icon svg { display: block; width: 28px; height: 28px; fill: currentColor; }
+
+/* Computador: nome à esquerda; botões no centro com a barra de tempo logo abaixo (como nos apps de música) */
+@media (min-width: 900px) {
+  :root { --player-h: 150px; }
+  .player {
+    display: grid; align-items: center; column-gap: 32px; row-gap: 2px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 600px) minmax(0, 1fr);
+    grid-template-areas: "info controls ." "info progress .";
+    padding-left: max(var(--gutter), calc((100vw - 1400px) / 2));
+    padding-right: max(var(--gutter), calc((100vw - 1400px) / 2));
+  }
+  .player > * { max-width: none; margin: 0; }
+  .pb-info { grid-area: info; min-width: 0; }
+  .pb-controls { grid-area: controls; }
+  .pb-progress { grid-area: progress; }
+  .pb-range { height: 40px; }
+  .pb-range::-webkit-slider-thumb { width: 22px; height: 22px; margin-top: -7px; }
+  .pb-range::-moz-range-thumb { width: 22px; height: 22px; }
+  .pb-title { font-size: 1.1rem; }
+  .pb-artist { font-size: 0.9rem; }
+}
 
 /* Instalar no celular */
 /* Janela "Instalar" que sobe de baixo no primeiro acesso */
