@@ -95,5 +95,7 @@ describe('seções: biblioteca e bônus', () => {
     expect(displayName('Bônus 2 – Extras')).toBe('Extras');
     expect(displayName('Louvores - Biblioteca Completa')).toBe('Biblioteca Completa');
     expect(displayName('Louvor & Adoração')).toBe('Louvor & Adoração');
+    expect(displayName('Bônus 2 - Lançamentos 2026')).toBe('Lançamentos 2027');
+    expect(displayName('9. Lançamentos 2026')).toBe('9. Lançamentos 2027');
   });
 });

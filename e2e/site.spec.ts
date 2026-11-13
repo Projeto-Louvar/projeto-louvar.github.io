@@ -26,7 +26,7 @@ test('início mostra seções e capas', async ({ page }) => {
   // Hinos Infantis entra na biblioteca (sem o "Bônus 1 -"); Lançamentos fica no Bônus
   const secao = (t: string) => page.locator('section', { has: page.getByRole('heading', { level: 2, name: t }) });
   await expect(secao('Biblioteca Completa').getByRole('link', { name: /^Hinos Infantis/ })).toBeVisible();
-  await expect(secao('Bônus').getByRole('link', { name: /^Lançamentos 2026/ })).toBeVisible();
+  await expect(secao('Bônus').getByRole('link', { name: /^Lançamentos 2027/ })).toBeVisible();
   await expect(page.getByText('Bônus 1')).toHaveCount(0);
   await expect(page.getByRole('link', { name: /Louvor & Adoração/ })).toBeVisible();
 });
@@ -224,10 +224,10 @@ test('todo link tem cara de botão (sem link solto no texto)', async ({ page }) 
 test.describe('bônus: versão pública e versão completa', () => {
   test('versão pública: lançamentos aparecem trancados e não tocam', async ({ page }) => {
     await page.goto('/');
-    const tile = page.getByRole('link', { name: /^Lançamentos 2026/ });
+    const tile = page.getByRole('link', { name: /^Lançamentos 2027/ });
     await expect(tile).toContainText('bloqueado');
     await tile.click();
-    await expect(page.getByRole('heading', { level: 1, name: 'Lançamentos 2026' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Lançamentos 2027' })).toBeVisible();
     await expect(page.getByRole('heading', { level: 2, name: 'Conteúdo bônus' })).toBeVisible();
     await expect(page.getByText('Envie o comprovante pelo WhatsApp.')).toBeVisible();
     await expect(page.getByRole('button', { name: /^Tocar/ })).toHaveCount(0);
@@ -237,7 +237,7 @@ test.describe('bônus: versão pública e versão completa', () => {
 
   test('versão completa (endereço secreto): lançamentos tocam normalmente', async ({ page }) => {
     await page.goto('/completa-teste/#/c/lancamentos');
-    await expect(page.getByRole('heading', { level: 1, name: 'Lançamentos 2026' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Lançamentos 2027' })).toBeVisible();
     await expect(page.getByRole('heading', { level: 2, name: 'Conteúdo bônus' })).toHaveCount(0);
     await page.getByRole('button', { name: 'Tocar Louvor Novo' }).click();
     await expect(page.getByRole('region', { name: 'Tocador' }).locator('.pb-title')).toHaveText('Louvor Novo');

@@ -8,8 +8,12 @@ export interface HomeSection { title: string; collections: Collection[] }
 // Pastas de lançamentos formam a seção Bônus (ver shared/bonus.ts).
 export const BONUS_TITLE = 'Bônus';
 
-/** Nome para mostrar: tira prefixos de organização do Drive ("Bônus 1 - ", "Louvores - "). */
+// Ajustes de nome feitos no site, sem precisar renomear a pasta no Drive
+const RENAMES: [RegExp, string][] = [[/lan[cç]amentos 2026/i, 'Lançamentos 2027']];
+
+/** Nome para mostrar: tira prefixos de organização do Drive ("Bônus 1 - ", "Louvores - ") e aplica RENAMES. */
 export function displayName(name: string): string {
+  for (const [re, to] of RENAMES) name = name.replace(re, to);
   return name.replace(/^\s*b[oô]nus\s*\d*\s*[-–:]\s*/i, '').replace(/^\s*louvores\s*[-–:]\s*/i, '').trim() || name;
 }
 
