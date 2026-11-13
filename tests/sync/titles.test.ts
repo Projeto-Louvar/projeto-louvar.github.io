@@ -34,3 +34,19 @@ describe('parseTrackName', () => {
     expect(parseTrackName('Grupo_VP  -  Livre_sou.mp3')).toEqual({ artist: 'Grupo VP', title: 'Livre sou' });
   });
 });
+
+describe('parseTrackName — nomes vindos de vídeos', () => {
+  const cases: [string, { artist: string; title: string }][] = [
+    ['Raquel Olliver  Sempre foi Deus [Clipe Oficial] [1].m4a', { artist: '', title: 'Raquel Olliver – Sempre foi Deus' }],
+    ['Isadora Pompeo - Ovelhinha (Ao Vivo) [1].m4a', { artist: 'Isadora Pompeo', title: 'Ovelhinha (Ao Vivo)' }],
+    ['ACENDE OUTRA VEZ┃JEFFERSON & SUELLEN (LIVE SESSION - AO VIVO).m4a', { artist: 'Acende Outra Vez', title: 'Jefferson & Suellen (Live Session - Ao Vivo)' }],
+    ['GABRIELA ROCHA - ME ATRAIU (AO VIVO).m4a', { artist: 'Gabriela Rocha', title: 'Me Atraiu (Ao Vivo)' }],
+    ['Maria Marçal - Deixa (Clipe Oficial MK Music).m4a', { artist: 'Maria Marçal', title: 'Deixa' }],
+    ['Sued Silva  Reacende a Chama [Vídeo Letra] [1].m4a', { artist: '', title: 'Sued Silva – Reacende a Chama' }],
+    ['Sou um dos Dez I Clipe Oficial [1].m4a', { artist: '', title: 'Sou um dos Dez' }],
+    ['Fernandinho  Único (Álbum Único - Live) [1].m4a', { artist: '', title: 'Fernandinho – Único (Álbum Único - Live)' }],
+    ['Maria Marçal - Cura  DVD CURA [1].m4a', { artist: 'Maria Marçal', title: 'Cura DVD CURA' }],
+    ['DJ PV - TU ÉS BOM.mp3', { artist: 'DJ PV', title: 'Tu És Bom' }],
+  ];
+  for (const [file, expected] of cases) it(file, () => expect(parseTrackName(file)).toEqual(expected));
+});
