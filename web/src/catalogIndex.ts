@@ -1,10 +1,11 @@
+import { BONUS_PATTERN, bonusIds } from '../../shared/bonus';
 import type { Catalog, Collection, Track } from '../../shared/catalog';
+
+export { BONUS_PATTERN };
 
 export interface HomeSection { title: string; collections: Collection[] }
 
-// Pastas de lançamentos ("Lançamentos 2026", depois "Lançamentos 2027"...) formam a seção Bônus,
-// estejam onde estiverem no Drive. Basta renomear a pasta no Drive para o site acompanhar.
-export const BONUS_PATTERN = /lan[cç]amentos?/i;
+// Pastas de lançamentos formam a seção Bônus (ver shared/bonus.ts).
 export const BONUS_TITLE = 'Bônus';
 
 /** Nome para mostrar: tira prefixos de organização do Drive ("Bônus 1 - ", "Louvores - "). */
@@ -16,10 +17,14 @@ export class CatalogIndex {
   private cols: Map<string, Collection>;
   private trks: Map<string, Track>;
   private totals = new Map<string, number>();
+  private locked: Set<string>;
 
-  constructor(readonly data: Catalog) {
+  /** lockBonus: versão pública, em que as coleções bônus aparecem trancadas. */
+  constructor(readonly data: Catalog, opts: { lockBonus?: boolean } = {}) {
     this.cols = new Map(data.collections.map((c) => [c.id, { ...c, name: displayName(c.name) }]));
-    this.trks = new Map(data.tracks.map((t) => [t.id, t]));
+    this.locked = opts.lockBonus ? bonusIds(data.collections, data.rootId) : new Set();
+    // Na versão trancada, as músicas bônus somem da busca, do tocador e das listas
+    this.trks = new Map(data.tracks.filter((t) => !this.locked.has(t.collectionId)).map((t) => [t.id, t]));
   }
 
   get root(): Collection {
@@ -32,6 +37,15 @@ export class CatalogIndex {
 
   track(id: string): Track | undefined {
     return this.trks.get(id);
+  }
+
+  isLocked(id: string): boolean {
+    return this.locked.has(id);
+  }
+
+  /** Músicas que podem ser buscadas e tocadas nesta versão do site. */
+  get playableTracks(): Track[] {
+    return [...this.trks.values()];
   }
 
   tracksOf(id: string): Track[] {

@@ -132,8 +132,10 @@ test.describe('instalar no celular', () => {
     await page.goto('/');
     const sheet = page.getByRole('dialog', { name: 'Instale o Louvar no celular' });
     await expect(sheet).toBeVisible();
+    // espera a animação de subida terminar antes de medir
+    await expect.poll(() => sheet.evaluate((el) => getComputedStyle(el).transform)).toMatch(/^(none|matrix\(1, 0, 0, 1, 0, 0\))$/);
     const box = (await sheet.boundingBox())!;
-    expect(box.y + box.height).toBeGreaterThan(page.viewportSize()!.height - 4); // encostada embaixo
+    expect(Math.round(box.y + box.height)).toBeGreaterThanOrEqual(page.viewportSize()!.height - 1); // encostada embaixo
     const [agora, instalar] = [sheet.getByRole('button', { name: 'Agora não' }), sheet.getByRole('button', { name: 'Instalar' })];
     expect((await agora.boundingBox())!.y).toBe((await instalar.boundingBox())!.y); // lado a lado
     await agora.click();
@@ -214,4 +216,38 @@ test('todo link tem cara de botão (sem link solto no texto)', async ({ page }) 
       els.filter((e) => (e as HTMLElement).offsetParent !== null).map((e) => e.textContent));
     expect(soltos, path).toEqual([]);
   }
+});
+
+test.describe('bônus: versão pública e versão completa', () => {
+  test('versão pública: lançamentos aparecem trancados e não tocam', async ({ page }) => {
+    await page.goto('/');
+    const tile = page.getByRole('link', { name: /^Lançamentos 2026/ });
+    await expect(tile).toContainText('bloqueado');
+    await tile.click();
+    await expect(page.getByRole('heading', { level: 1, name: 'Lançamentos 2026' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 2, name: 'Conteúdo bônus' })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Tocar/ })).toHaveCount(0);
+    await page.goto('/#/busca?q=louvor novo');
+    await expect(page.getByText('Nenhuma música encontrada')).toBeVisible();
+  });
+
+  test('versão completa (endereço secreto): lançamentos tocam normalmente', async ({ page }) => {
+    await page.goto('/completa-teste/#/c/lancamentos');
+    await expect(page.getByRole('heading', { level: 1, name: 'Lançamentos 2026' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 2, name: 'Conteúdo bônus' })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Tocar Louvor Novo' }).click();
+    await expect(page.getByRole('region', { name: 'Tocador' }).locator('.pb-title')).toHaveText('Louvor Novo');
+  });
+
+  test('o catálogo publicado na versão pública não traz os links dos bônus', async ({ request }) => {
+    // Vale para o acervo real que foi publicado: nenhuma música de pasta de lançamentos no catálogo público
+    type C = { collections: { id: string; name: string; childIds: string[] }[]; tracks: { collectionId: string }[] };
+    const pub = (await (await request.get('/catalog.json')).json()) as C;
+    const full = (await (await request.get('/completa-teste/catalog.json')).json()) as C;
+    const locked = new Set<string>();
+    const mark = (id: string) => { locked.add(id); full.collections.find((c) => c.id === id)?.childIds.forEach(mark); };
+    full.collections.filter((c) => /lan[cç]amentos?/i.test(c.name)).forEach((c) => mark(c.id));
+    expect(pub.tracks.filter((t) => locked.has(t.collectionId))).toEqual([]);
+    expect(pub.tracks.length).toBe(full.tracks.filter((t) => !locked.has(t.collectionId)).length);
+  });
 });

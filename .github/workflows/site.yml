@@ -87,6 +87,11 @@ jobs:
       - run: npm ci
       - run: npm run check
       - run: npm run build
+        env:
+          # Endereço secreto da versão completa (bônus liberados). Fica só nos segredos do GitHub.
+          FULL_PATH: ${{ secrets.FULL_PATH }}
+          # Para onde vai o botão "Quero liberar o bônus" (WhatsApp ou página de pagamento)
+          VITE_UNLOCK_URL: ${{ vars.UNLOCK_URL }}
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

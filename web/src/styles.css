@@ -74,6 +74,21 @@ h2 { font-family: var(--display); font-weight: 700; font-size: 1.4rem; margin: 3
   display: flex; flex-direction: column; overflow: hidden; text-decoration: none;
   color: var(--text); background: var(--card); border: 2px solid var(--line); border-radius: var(--radius);
 }
+.tile-media { position: relative; display: block; }
+.lock-badge {
+  position: absolute; top: 8px; left: 8px; display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px 4px 8px; border-radius: 999px; font-size: 0.8rem; font-weight: 700;
+  background: var(--accent); color: var(--on-accent);
+}
+.lock-badge svg { width: 16px; height: 16px; }
+.tile.is-locked .tile-img { filter: grayscale(0.85) brightness(0.55); }
+.col-media { position: relative; flex: none; display: block; }
+.col-media .col-img { filter: grayscale(0.85) brightness(0.55); }
+.col-media .lock-badge { top: 6px; left: 6px; font-size: 0.7rem; padding: 3px 8px 3px 6px; }
+.locked-panel { max-width: 560px; padding: 20px; border: 2px solid var(--accent); border-radius: var(--radius); background: var(--accent-soft); }
+.locked-panel h2 { margin-top: 0; color: var(--accent); }
+.locked-panel p { margin: 0 0 16px; }
+.locked-panel > :last-child { margin-bottom: 0; }
 .tile-img { display: block; width: 100%; height: auto; aspect-ratio: 1; object-fit: cover; background: var(--card-soft); }
 .tile-img.is-empty { background: var(--card); }
 .tile-body { flex: 1; display: flex; flex-direction: column; justify-content: flex-start; padding: 10px 10px 8px; min-height: 76px; }

@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "tsx scripts/build-editions.ts",
     "preview": "vite preview",
     "test": "vitest run",
     "typecheck": "tsc",

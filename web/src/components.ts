@@ -30,13 +30,22 @@ export function coverImage(idx: CatalogIndex, id: string, cls: string): HTMLElem
     : h('span', { class: `${cls} is-empty`, 'aria-hidden': 'true' });
 }
 
+export function lockBadge(): HTMLElement {
+  const b = h('span', { class: 'lock-badge', 'aria-hidden': 'true' }); // o texto "bloqueado" já informa
+  b.innerHTML = LOCK_SVG + '<span>Bônus</span>';
+  return b;
+}
+const LOCK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 2a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-1V7a5 5 0 0 0-5-5zm-3 8V7a3 3 0 0 1 6 0v3z"/></svg>';
+
 export function tileGrid(idx: CatalogIndex, cols: Collection[]): HTMLElement {
-  return h('div', { class: 'tiles' }, ...cols.map((c) =>
-    h('a', { class: 'tile', href: hrefFor({ name: 'collection', id: c.id }) },
-      coverImage(idx, c.id, 'tile-img'),
+  return h('div', { class: 'tiles' }, ...cols.map((c) => {
+    const locked = idx.isLocked(c.id);
+    return h('a', { class: locked ? 'tile is-locked' : 'tile', href: hrefFor({ name: 'collection', id: c.id }) },
+      h('span', { class: 'tile-media' }, coverImage(idx, c.id, 'tile-img'), locked ? lockBadge() : null),
       h('span', { class: 'tile-body' },
         h('span', { class: 'tile-name' }, c.name),
-        h('span', { class: 'tile-count' }, countLabel(idx.totalTracks(c.id)))))));
+        h('span', { class: 'tile-count' }, locked ? `${countLabel(idx.totalTracks(c.id))} · bloqueado` : countLabel(idx.totalTracks(c.id)))));
+  }));
 }
 
 export function trackList(ctx: Ctx, tracks: Track[]): HTMLElement {

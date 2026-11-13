@@ -5,6 +5,7 @@ import './styles.css';
 import { CatalogIndex, loadCatalog } from './catalogIndex';
 import { h } from './dom';
 import { detectPlatform } from './downloads';
+import { FULL_EDITION } from './edition';
 import { InstallState } from './install';
 import { mountInstallSheet } from './installView';
 import { Player } from './player';
@@ -19,7 +20,7 @@ async function boot(): Promise<void> {
   const app = document.getElementById('app')!;
   let idx: CatalogIndex;
   try {
-    idx = new CatalogIndex(await loadCatalog());
+    idx = new CatalogIndex(await loadCatalog(), { lockBonus: !FULL_EDITION });
   } catch {
     app.replaceChildren(renderError(() => void boot()));
     return;

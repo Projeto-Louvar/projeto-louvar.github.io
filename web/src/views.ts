@@ -7,7 +7,8 @@ import { installPanel } from './installView';
 import type { Player } from './player';
 import { hrefFor } from './router';
 import { searchTracks } from './search';
-import { coverImage, downloadAll, searchForm, tileGrid, trackList } from './components';
+import { coverImage, downloadAll, lockBadge, searchForm, tileGrid, trackList } from './components';
+import { UNLOCK_URL } from './edition';
 import { creditList } from './covers';
 
 export interface Ctx {
@@ -63,9 +64,10 @@ export function renderCollection(ctx: Ctx, id: string): HTMLElement {
       h('p', { class: 'note' }, 'Ela pode ter sido renomeada ou removida. Volte ao início para escolher outra.'),
     );
   }
+  const back = ctx.idx.backTarget(id);
+  if (ctx.idx.isLocked(id)) return renderLocked(ctx, id, back);
   const tracks = ctx.idx.tracksOf(id);
   const kids = ctx.idx.childrenOf(id);
-  const back = ctx.idx.backTarget(id);
   return page(
     backLink(back ? hrefFor({ name: 'collection', id: back }) : hrefFor({ name: 'home' })),
     h('header', { class: 'col-header' },
@@ -85,8 +87,26 @@ export function renderCollection(ctx: Ctx, id: string): HTMLElement {
   );
 }
 
+function renderLocked(ctx: Ctx, id: string, back: string | null): HTMLElement {
+  const c = ctx.idx.collection(id)!;
+  return page(
+    backLink(back ? hrefFor({ name: 'collection', id: back }) : hrefFor({ name: 'home' })),
+    h('header', { class: 'col-header' },
+      h('span', { class: 'col-media' }, coverImage(ctx.idx, id, 'col-img'), lockBadge()),
+      h('div', { class: 'col-title' },
+        h('h1', { tabindex: '-1' }, c.name),
+        h('p', {}, countLabel(ctx.idx.totalTracks(id))))),
+    h('section', { class: 'locked-panel' },
+      h('h2', {}, 'Conteúdo bônus'),
+      h('p', {}, 'Estas músicas fazem parte do bônus do Projeto Louvar e ainda estão bloqueadas neste celular.'),
+      UNLOCK_URL
+        ? h('a', { class: 'btn btn-primary btn-big', href: UNLOCK_URL, target: '_blank', rel: 'noopener' }, 'Quero liberar o bônus')
+        : h('p', { class: 'note' }, 'Para liberar, fale com quem enviou o link do Projeto Louvar.')),
+  );
+}
+
 export function renderSearch(ctx: Ctx, q: string): HTMLElement {
-  const results = q ? searchTracks(ctx.idx.data.tracks, q) : [];
+  const results = q ? searchTracks(ctx.idx.playableTracks, q) : [];
   const summary = !q
     ? null
     : results.length
