@@ -22,11 +22,11 @@ test('início mostra seções e capas', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { level: 1, name: 'Projeto Louvar' })).toBeVisible();
   await expect(page.getByRole('heading', { level: 2, name: 'Biblioteca Completa' })).toBeVisible();
-  await expect(page.getByRole('heading', { level: 2, name: 'Bônus' })).toBeVisible();
-  // Hinos Infantis entra na biblioteca (sem o "Bônus 1 -"); Lançamentos fica no Bônus
+  // Hinos Infantis entra na biblioteca (sem o "Bônus 1 -"); o Bônus é um cartão único dentro da biblioteca
   const secao = (t: string) => page.locator('section', { has: page.getByRole('heading', { level: 2, name: t }) });
   await expect(secao('Biblioteca Completa').getByRole('link', { name: /^Hinos Infantis/ })).toBeVisible();
-  await expect(secao('Bônus').getByRole('link', { name: /^Lançamentos 2027/ })).toBeVisible();
+  await expect(secao('Biblioteca Completa').getByRole('link', { name: /^Bônus/ })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 2, name: 'Bônus' })).toHaveCount(0);
   await expect(page.getByText('Bônus 1')).toHaveCount(0);
   await expect(page.getByRole('link', { name: /Louvor & Adoração/ })).toBeVisible();
 });
@@ -224,6 +224,11 @@ test('todo link tem cara de botão (sem link solto no texto)', async ({ page }) 
 test.describe('bônus: versão pública e versão completa', () => {
   test('versão pública: lançamentos aparecem trancados e não tocam', async ({ page }) => {
     await page.goto('/');
+    const bonus = page.getByRole('link', { name: /^Bônus/ });
+    await expect(bonus).toContainText('bloqueado');
+    await bonus.click();
+    await expect(page.getByRole('heading', { level: 1, name: 'Bônus' })).toBeVisible();
+    await expect(page.getByText('Envie o comprovante pelo WhatsApp.')).toBeVisible();
     const tile = page.getByRole('link', { name: /^Lançamentos 2027/ });
     await expect(tile).toContainText('bloqueado');
     await tile.click();
@@ -262,4 +267,19 @@ test('tocar aleatório: em coleção com subpastas embaralha tudo o que está de
   const bar = page.getByRole('region', { name: 'Tocador' });
   await expect(bar).toBeVisible();
   await expect(bar.locator('.pb-title')).not.toBeEmpty();
+});
+
+test('cartão do Bônus aparece na primeira tela do celular', async ({ page }, info) => {
+  test.skip(info.project.name !== 'celular', 'só no celular');
+  await page.goto('/');
+  const box = await page.getByRole('link', { name: /^Bônus/ }).boundingBox();
+  expect(box!.y).toBeLessThan(page.viewportSize()!.height);
+});
+
+test('versão completa: página do Bônus libera e toca aleatório', async ({ page }) => {
+  await page.goto('/completa-teste/#/bonus');
+  await expect(page.getByRole('heading', { level: 1, name: 'Bônus' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 2, name: 'Conteúdo bônus' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Tocar aleatório' }).click();
+  await expect(page.getByRole('region', { name: 'Tocador' }).locator('.pb-title')).toHaveText('Louvor Novo');
 });

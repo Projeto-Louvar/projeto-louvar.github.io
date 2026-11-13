@@ -26,7 +26,7 @@ describe('format', () => {
 
 describe('router', () => {
   it('ida e volta', () => {
-    for (const r of [{ name: 'home' }, { name: 'collection', id: '1a-B_c' }, { name: 'search', q: 'hino da vitória' }, { name: 'credits' }, { name: 'install' }] as const) {
+    for (const r of [{ name: 'home' }, { name: 'collection', id: '1a-B_c' }, { name: 'search', q: 'hino da vitória' }, { name: 'credits' }, { name: 'install' }, { name: 'bonus' }] as const) {
       expect(parseHash(hrefFor(r))).toEqual(r);
     }
   });

@@ -87,8 +87,10 @@ describe('seções: biblioteca e bônus', () => {
   it('hinos infantis vão para a biblioteca e lançamentos (onde estiverem) para o bônus', () => {
     expect(ix.homeSections().map((s) => [s.title, s.collections.map((c) => c.id)])).toEqual([
       ['Biblioteca Completa', ['M', 'G', 'I']],
-      ['Bônus', ['N', 'L']],
     ]);
+    expect(ix.bonusCollections().map((c) => c.id)).toEqual(['N', 'L']);
+    expect(ix.bonusCount()).toBe(2);
+    expect(ix.bonusTracks().map((t) => t.id).sort()).toEqual(['t3', 't4']);
   });
   it('limpa prefixos de organização dos nomes', () => {
     expect(ix.collection('I')!.name).toBe('Hinos Infantis');

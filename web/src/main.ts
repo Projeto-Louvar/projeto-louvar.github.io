@@ -11,7 +11,7 @@ import { mountInstallSheet } from './installView';
 import { Player } from './player';
 import { renderPlayerBar } from './playerBar';
 import { parseHash } from './router';
-import { renderCollection, renderCredits, renderError, renderHome, renderInstall, renderSearch, type Ctx } from './views';
+import { renderCollection, renderCredits, renderError, renderBonus, renderHome, renderInstall, renderSearch, type Ctx } from './views';
 
 // Precisa existir antes de carregar o catálogo: o Chrome avisa que dá para instalar logo no começo.
 const install = new InstallState();
@@ -45,6 +45,7 @@ async function boot(): Promise<void> {
       : route.name === 'search' ? renderSearch(ctx, route.q)
       : route.name === 'credits' ? renderCredits(ctx)
       : route.name === 'install' ? renderInstall(ctx)
+      : route.name === 'bonus' ? renderBonus(ctx)
       : renderHome(ctx);
     outlet.replaceChildren(view);
     window.scrollTo(0, 0);

@@ -116,6 +116,7 @@ h2 { font-family: var(--display); font-weight: 700; font-size: 1.4rem; margin: 3
 .pix-status { font-size: 0.95rem; color: var(--accent); }
 .pix-status:empty { display: none; }
 .section-note { margin: -6px 0 14px; }
+.bonus-intro { margin: -8px 0 20px; color: var(--muted); }
 .photo-note { margin: 24px 0 0; font-size: 0.75rem; color: var(--muted); overflow-wrap: anywhere; }
 .tile-img { display: block; width: 100%; height: auto; aspect-ratio: 1; object-fit: cover; background: var(--card-soft); }
 .tile-img.is-empty { background: var(--card); }

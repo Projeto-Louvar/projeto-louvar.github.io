@@ -83,16 +83,31 @@ export class CatalogIndex {
     return n;
   }
 
-  homeSections(): HomeSection[] {
+  /** Coleções do bônus (só a mais externa de cada ramo), na ordem do acervo. */
+  bonusCollections(): Collection[] {
     const isBonus = (c: Collection) => c.id !== this.root.id && BONUS_PATTERN.test(c.name);
-    // Só a pasta de lançamentos mais externa (subpastas dela ficam dentro dela)
-    const bonus = [...this.cols.values()].filter((c) => {
+    return [...this.cols.values()].filter((c) => {
       if (!isBonus(c)) return false;
       for (let p = c.parentId ? this.cols.get(c.parentId) : undefined; p; p = p.parentId ? this.cols.get(p.parentId) : undefined) {
         if (isBonus(p)) return false;
       }
       return true;
     });
+  }
+
+  /** Todas as músicas do bônus, sem repetir. */
+  bonusTracks(): Track[] {
+    const seen = new Set<string>();
+    return this.bonusCollections().flatMap((c) => this.allTracksUnder(c.id)).filter((t) => !seen.has(t.md5) && !!seen.add(t.md5));
+  }
+
+  bonusCount(): number {
+    return this.bonusCollections().reduce((n, c) => n + this.totalTracks(c.id), 0);
+  }
+
+  /** Seções da tela inicial. O bônus não é seção: vira um cartão único dentro da biblioteca (ver renderHome). */
+  homeSections(): HomeSection[] {
+    const isBonus = (c: Collection) => c.id !== this.root.id && BONUS_PATTERN.test(c.name);
     const sections: HomeSection[] = [];
     const loose: Collection[] = [];
     if (this.root.trackIds.length) loose.push(this.root);
@@ -109,7 +124,6 @@ export class CatalogIndex {
       if (sections.length) sections[0] = { ...sections[0], collections: [...sections[0].collections, ...loose] };
       else sections.push({ title: 'Biblioteca', collections: loose });
     }
-    if (bonus.length) sections.push({ title: BONUS_TITLE, collections: bonus });
     return sections;
   }
 

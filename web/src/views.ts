@@ -1,5 +1,6 @@
+import type { Track } from '../../shared/catalog';
 import { h } from './dom';
-import { BONUS_TITLE, type CatalogIndex } from './catalogIndex';
+import type { CatalogIndex } from './catalogIndex';
 import type { Platform } from './downloads';
 import { countLabel } from './format';
 import type { InstallState } from './install';
@@ -7,7 +8,7 @@ import { installPanel } from './installView';
 import type { Player } from './player';
 import { hrefFor } from './router';
 import { searchTracks } from './search';
-import { coverImage, downloadAll, lockBadge, searchForm, tileGrid, trackList } from './components';
+import { bonusTile, coverImage, downloadAll, lockBadge, searchForm, tileGrid, trackList } from './components';
 import { FULL_EDITION, PIX, PRICES, WHATSAPP_URL } from './edition';
 import { ICONS } from './icons';
 import { shuffled } from './shuffle';
@@ -28,11 +29,11 @@ export function renderHome(ctx: Ctx): HTMLElement {
   return page(
     h('h1', { class: 'site-title', tabindex: '-1' }, 'Projeto Louvar'),
     searchForm(''),
-    ...ctx.idx.homeSections().map((s) =>
+    ...ctx.idx.homeSections().map((s, i) =>
       h('section', { class: 'section' },
         h('h2', {}, s.title),
-        s.title === BONUS_TITLE && !FULL_EDITION ? h('p', { class: 'note section-note' }, 'Liberado depois do pagamento. Toque para ver como.') : null,
-        tileGrid(ctx.idx, s.collections))),
+        // o Bônus entra como mais um cartão da primeira seção, para aparecer logo na primeira tela
+        tileGrid(ctx.idx, s.collections, i === 0 ? bonusTile(ctx.idx, !FULL_EDITION) : null))),
     h('p', { class: 'site-foot' }, h('a', { class: 'btn', href: hrefFor({ name: 'install' }) }, 'Instalar no celular')),
     // Exigência das licenças das fotos (CC BY / BY-SA): indicar onde estão os autores
     h('p', { class: 'photo-note' }, 'Fotos das capas: Wikimedia Commons, licenças Creative Commons. Autores em projeto-louvar.github.io/#/creditos'),
@@ -95,13 +96,34 @@ export function renderCollection(ctx: Ctx, id: string): HTMLElement {
   );
 }
 
+export function renderBonus(ctx: Ctx): HTMLElement {
+  const cols = ctx.idx.bonusCollections();
+  const locked = !FULL_EDITION;
+  const cover = cols.find((c) => /lan[cç]amento/i.test(c.name)) ?? cols[0];
+  const names = cols.map((c) => c.name);
+  const list = names.length > 1 ? `${names.slice(0, -1).join(', ')} e ${names[names.length - 1]}` : names[0] ?? '';
+  return page(
+    backLink(hrefFor({ name: 'home' })),
+    h('header', { class: 'col-header' },
+      cover ? (locked ? h('span', { class: 'col-media' }, coverImage(ctx.idx, cover.id, 'col-img'), lockBadge()) : coverImage(ctx.idx, cover.id, 'col-img')) : null,
+      h('div', { class: 'col-title' },
+        h('h1', { tabindex: '-1' }, 'Bônus'),
+        h('p', {}, countLabel(ctx.idx.bonusCount())))),
+    list ? h('p', { class: 'bonus-intro' }, `Inclui ${list}.`) : null,
+    locked
+      ? unlockPanel()
+      : h('div', { class: 'actions' }, shuffleButton(ctx, () => ctx.idx.bonusTracks(), true)),
+    cols.length ? h('section', { class: 'section' }, h('h2', {}, locked ? 'O que vem no bônus' : 'Coleções'), tileGrid(ctx.idx, cols)) : null,
+  );
+}
+
 /** "Tocar aleatório": embaralha todas as músicas da coleção, inclusive das subpastas. */
-function shuffleButton(ctx: Ctx, id: string, primary: boolean): HTMLElement {
+function shuffleButton(ctx: Ctx, source: string | (() => Track[]), primary: boolean): HTMLElement {
   const icon = h('span', { class: 'btn-icon', 'aria-hidden': 'true' });
   icon.innerHTML = ICONS.shuffle;
   return h('button', {
     class: primary ? 'btn btn-primary btn-big' : 'btn btn-big', type: 'button',
-    onclick: () => { const all = ctx.idx.allTracksUnder(id); if (all.length) ctx.player.playQueue(shuffled(all), 0); },
+    onclick: () => { const all = typeof source === 'string' ? ctx.idx.allTracksUnder(source) : source(); if (all.length) ctx.player.playQueue(shuffled(all), 0); },
   }, icon, 'Tocar aleatório');
 }
 
