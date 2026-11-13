@@ -54,7 +54,7 @@ h2 { font-family: var(--display); font-weight: 700; font-size: 1.4rem; margin: 3
 
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  min-height: 56px; padding: 0 20px;
+  min-height: 56px; padding: 8px 20px; text-align: center; line-height: 1.25;
   font: inherit; font-weight: 700; text-decoration: none; cursor: pointer;
   color: var(--accent); background: transparent;
   border: 2px solid var(--accent); border-radius: var(--radius);
@@ -89,6 +89,12 @@ h2 { font-family: var(--display); font-weight: 700; font-size: 1.4rem; margin: 3
 .locked-panel h2 { margin-top: 0; color: var(--accent); }
 .locked-panel p { margin: 0 0 16px; }
 .locked-panel > :last-child { margin-bottom: 0; }
+.unlock-steps { list-style: none; margin: 0 0 20px; padding: 0; display: grid; gap: 12px; }
+.unlock-step { display: flex; align-items: flex-start; gap: 12px; }
+.unlock-step p { margin: 8px 0 0; }
+.pay-info { display: block; margin-top: 6px; font-weight: 700; color: var(--accent); overflow-wrap: anywhere; }
+.section-note { margin: -6px 0 14px; }
+.photo-note { margin: 24px 0 0; font-size: 0.75rem; color: var(--muted); overflow-wrap: anywhere; }
 .tile-img { display: block; width: 100%; height: auto; aspect-ratio: 1; object-fit: cover; background: var(--card-soft); }
 .tile-img.is-empty { background: var(--card); }
 .tile-body { flex: 1; display: flex; flex-direction: column; justify-content: flex-start; padding: 10px 10px 8px; min-height: 76px; }

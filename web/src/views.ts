@@ -1,5 +1,5 @@
 import { h } from './dom';
-import type { CatalogIndex } from './catalogIndex';
+import { BONUS_TITLE, type CatalogIndex } from './catalogIndex';
 import type { Platform } from './downloads';
 import { countLabel } from './format';
 import type { InstallState } from './install';
@@ -8,7 +8,7 @@ import type { Player } from './player';
 import { hrefFor } from './router';
 import { searchTracks } from './search';
 import { coverImage, downloadAll, lockBadge, searchForm, tileGrid, trackList } from './components';
-import { UNLOCK_URL } from './edition';
+import { FULL_EDITION, PAYMENT_INFO, WHATSAPP_URL } from './edition';
 import { creditList } from './covers';
 
 export interface Ctx {
@@ -27,10 +27,13 @@ export function renderHome(ctx: Ctx): HTMLElement {
     h('h1', { class: 'site-title', tabindex: '-1' }, 'Projeto Louvar'),
     searchForm(''),
     ...ctx.idx.homeSections().map((s) =>
-      h('section', { class: 'section' }, h('h2', {}, s.title), tileGrid(ctx.idx, s.collections))),
-    h('p', { class: 'site-foot' },
-      h('a', { class: 'btn', href: hrefFor({ name: 'install' }) }, 'Instalar no celular'),
-      h('a', { class: 'btn', href: hrefFor({ name: 'credits' }) }, 'Créditos das fotos')),
+      h('section', { class: 'section' },
+        h('h2', {}, s.title),
+        s.title === BONUS_TITLE && !FULL_EDITION ? h('p', { class: 'note section-note' }, 'Liberado depois do pagamento. Toque para ver como.') : null,
+        tileGrid(ctx.idx, s.collections))),
+    h('p', { class: 'site-foot' }, h('a', { class: 'btn', href: hrefFor({ name: 'install' }) }, 'Instalar no celular')),
+    // Exigência das licenças das fotos (CC BY / BY-SA): indicar onde estão os autores
+    h('p', { class: 'photo-note' }, 'Fotos das capas: Wikimedia Commons, licenças Creative Commons. Autores em projeto-louvar.github.io/#/creditos'),
   );
 }
 
@@ -96,13 +99,24 @@ function renderLocked(ctx: Ctx, id: string, back: string | null): HTMLElement {
       h('div', { class: 'col-title' },
         h('h1', { tabindex: '-1' }, c.name),
         h('p', {}, countLabel(ctx.idx.totalTracks(id))))),
-    h('section', { class: 'locked-panel' },
-      h('h2', {}, 'Conteúdo bônus'),
-      h('p', {}, 'Estas músicas fazem parte do bônus do Projeto Louvar e ainda estão bloqueadas neste celular.'),
-      UNLOCK_URL
-        ? h('a', { class: 'btn btn-primary btn-big', href: UNLOCK_URL, target: '_blank', rel: 'noopener' }, 'Quero liberar o bônus')
-        : h('p', { class: 'note' }, 'Para liberar, fale com quem enviou o link do Projeto Louvar.')),
+    unlockPanel(),
   );
+}
+
+/** Como liberar o bônus: pagar, mandar o comprovante no WhatsApp, receber o link completo. */
+function unlockPanel(): HTMLElement {
+  const step = (n: number, ...text: (Node | string | null)[]) =>
+    h('li', { class: 'unlock-step' }, h('span', { class: 'step-num', 'aria-hidden': 'true' }, String(n)), h('p', {}, ...text));
+  return h('section', { class: 'locked-panel' },
+    h('h2', {}, 'Conteúdo bônus'),
+    h('p', {}, 'A Biblioteca Organizada por Momento e os Lançamentos são liberados depois do pagamento.'),
+    h('ol', { class: 'unlock-steps' },
+      step(1, 'Faça o pagamento.', PAYMENT_INFO ? h('span', { class: 'pay-info' }, PAYMENT_INFO) : null),
+      step(2, 'Envie o comprovante pelo WhatsApp.'),
+      step(3, 'Você recebe um link novo, com tudo liberado.')),
+    WHATSAPP_URL
+      ? h('a', { class: 'btn btn-primary btn-big', href: WHATSAPP_URL, target: '_blank', rel: 'noopener' }, 'Enviar comprovante pelo WhatsApp')
+      : h('p', { class: 'note' }, 'Para pagar e enviar o comprovante, fale com quem enviou o link do Projeto Louvar.'));
 }
 
 export function renderSearch(ctx: Ctx, q: string): HTMLElement {

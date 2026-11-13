@@ -1,8 +1,9 @@
-// Bônus = pastas de lançamentos ("Lançamentos 2026", depois "Lançamentos 2027"...), estejam onde estiverem no Drive.
-// A versão pública do site mostra essas coleções trancadas; a versão completa (endereço secreto) libera tudo.
+// Bônus = "Biblioteca Organizada por Momento" e as pastas de lançamentos ("Lançamentos 2027"...),
+// estejam onde estiverem no Drive. A versão pública mostra essas coleções trancadas;
+// a versão completa (endereço secreto, enviado depois do comprovante) libera tudo.
 import type { Catalog, Collection } from './catalog';
 
-export const BONUS_PATTERN = /lan[cç]amentos?/i;
+export const BONUS_PATTERN = /lan[cç]amentos?|organizada por momento/i;
 
 /** Coleções bônus e tudo o que está dentro delas. */
 export function bonusIds(collections: Collection[], rootId: string): Set<string> {

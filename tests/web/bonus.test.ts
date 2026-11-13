@@ -18,6 +18,13 @@ const data: Catalog = {
 };
 
 describe('bônus', () => {
+  it('Biblioteca Organizada por Momento e Lançamentos (qualquer ano) são bônus; Hinos Infantis não', () => {
+    const names = ['Biblioteca Organizada por Momento', 'Lançamentos 2027', 'lancamentos', 'Hinos Infantis', 'Gospel Atual'];
+    const cols = names.map((n, i) => col(`c${i}`, n, 'R', [], []));
+    const ids = bonusIds([col('R', 'Raiz', null, cols.map((c) => c.id), []), ...cols], 'R');
+    expect(names.filter((_, i) => ids.has(`c${i}`))).toEqual(['Biblioteca Organizada por Momento', 'Lançamentos 2027', 'lancamentos']);
+  });
+
   it('pastas de lançamentos e tudo dentro delas', () => {
     expect([...bonusIds(data.collections, 'R')].sort()).toEqual(['L', 'L1']);
   });

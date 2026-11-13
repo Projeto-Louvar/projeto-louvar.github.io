@@ -1,5 +1,6 @@
 import { devices, expect, test, type Browser } from '@playwright/test';
 import { readFileSync } from 'node:fs';
+import { BONUS_PATTERN } from '../shared/bonus';
 
 // Os testes usam sempre o catálogo de amostra, não o acervo real que o sync grava em web/public.
 test.beforeEach(async ({ page }) => {
@@ -120,7 +121,9 @@ test('capa mostra a foto da coleção e a página da coleção repete a foto', a
 
 test('página de créditos lista o autor de cada foto', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('link', { name: 'Créditos das fotos' }).click();
+  await expect(page.getByRole('link', { name: 'Créditos das fotos' })).toHaveCount(0); // sem botão, só a nota
+  await expect(page.locator('.photo-note')).toContainText('#/creditos');
+  await page.goto('/#/creditos');
   await expect(page.getByRole('heading', { level: 1, name: 'Créditos das fotos' })).toBeVisible();
   expect(await page.locator('.credits li').count()).toBeGreaterThanOrEqual(50);
   await expect(page.locator('.credits li a').first()).toHaveAttribute('href', /commons\.wikimedia\.org/);
@@ -226,6 +229,7 @@ test.describe('bônus: versão pública e versão completa', () => {
     await tile.click();
     await expect(page.getByRole('heading', { level: 1, name: 'Lançamentos 2026' })).toBeVisible();
     await expect(page.getByRole('heading', { level: 2, name: 'Conteúdo bônus' })).toBeVisible();
+    await expect(page.getByText('Envie o comprovante pelo WhatsApp.')).toBeVisible();
     await expect(page.getByRole('button', { name: /^Tocar/ })).toHaveCount(0);
     await page.goto('/#/busca?q=louvor novo');
     await expect(page.getByText('Nenhuma música encontrada')).toBeVisible();
@@ -246,7 +250,7 @@ test.describe('bônus: versão pública e versão completa', () => {
     const full = (await (await request.get('/completa-teste/catalog.json')).json()) as C;
     const locked = new Set<string>();
     const mark = (id: string) => { locked.add(id); full.collections.find((c) => c.id === id)?.childIds.forEach(mark); };
-    full.collections.filter((c) => /lan[cç]amentos?/i.test(c.name)).forEach((c) => mark(c.id));
+    full.collections.filter((c) => BONUS_PATTERN.test(c.name)).forEach((c) => mark(c.id));
     expect(pub.tracks.filter((t) => locked.has(t.collectionId))).toEqual([]);
     expect(pub.tracks.length).toBe(full.tracks.filter((t) => !locked.has(t.collectionId)).length);
   });
