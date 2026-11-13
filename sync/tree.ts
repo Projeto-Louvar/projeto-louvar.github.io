@@ -1,5 +1,5 @@
 export interface DriveFolder { id: string; name: string; parentId: string | null }
-export interface DriveAudio { id: string; name: string; parentId: string; md5: string; size: number }
+export interface DriveAudio { id: string; name: string; parentId: string; md5: string; size: number; convert?: boolean }
 export interface SkippedFile { name: string; parentId: string; mimeType: string }
 export interface DriveSnapshot { rootId: string; folders: DriveFolder[]; files: DriveAudio[]; skipped?: string[]; skippedFiles?: SkippedFile[] }
 import { BONUS_PATTERN } from '../shared/bonus';

@@ -1,12 +1,12 @@
 import { createHash } from 'node:crypto';
 import type { Catalog, Collection, Track } from '../shared/catalog';
 import { safeAssetName, slugify } from './names';
-import { parseTrackName } from './titles';
+import { audioNameFor, parseTrackName } from './titles';
 import type { DriveSnapshot, TreeCollection } from './tree';
 
 export const PALETTE = ['#1F4E79', '#7A1F3D', '#2E6B3A', '#8A4B0F', '#4B2E83', '#0F6E6E', '#9B2C2C', '#3D4F5C'];
 
-export interface UploadJob { fileId: string; fileName: string; tag: string; assetName: string; url: string; size: number }
+export interface UploadJob { fileId: string; fileName: string; tag: string; assetName: string; url: string; size: number; convert?: boolean }
 export interface ZipJob { collectionId: string; tag: string; zipKey: string; baseName: string }
 export interface SyncPlan { catalog: Catalog; uploads: UploadJob[]; zips: ZipJob[] }
 
@@ -56,13 +56,19 @@ export function planSync(
       if (old && old.md5 === f.md5 && old.url) url = old.url;
       else if (urlByMd5.has(f.md5)) url = urlByMd5.get(f.md5)!;
       else {
-        const assetName = safeAssetName(f.name, taken);
+        // Vídeo convertido: o nome leva parte do md5 do original, então "já existe no GitHub" basta para pular
+        const assetName = f.convert
+          ? safeAssetName(`${f.name.replace(/\.[^.]+$/, '')}-${f.md5.slice(0, 8)}.m4a`, taken)
+          : safeAssetName(f.name, taken);
         url = assetUrl(repoBase, tag, assetName);
-        uploads.push({ fileId: f.id, fileName: f.name, tag, assetName, url, size: f.size });
+        uploads.push({ fileId: f.id, fileName: f.name, tag, assetName, url, size: f.size, ...(f.convert ? { convert: true } : {}) });
         urlByMd5.set(f.md5, url);
       }
       const { title, artist } = parseTrackName(f.name);
-      tracks.push({ id: f.id, title, artist, fileName: f.name, collectionId: tc.id, md5: f.md5, size: f.size, url });
+      const fileName = f.convert ? audioNameFor(f.name) : f.name;
+      // tamanho do áudio já convertido, se conhecido (o do Drive é o do vídeo)
+      const size = f.convert && old?.url === url ? old.size : f.size;
+      tracks.push({ id: f.id, title, artist, fileName, collectionId: tc.id, md5: f.md5, size, url });
       trackIds.push(f.id);
       md5s.push(f.md5);
     }

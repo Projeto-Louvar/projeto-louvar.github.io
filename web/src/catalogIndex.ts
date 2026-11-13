@@ -80,7 +80,10 @@ export class CatalogIndex {
     if (this.root.trackIds.length) loose.push(this.root);
     for (const c of this.childrenOf(this.root.id)) {
       if (isBonus(c)) continue;
-      if (c.childIds.length) sections.push({ title: c.name, collections: this.childrenOf(c.id).filter((k) => !isBonus(k)) });
+      const kids = this.childrenOf(c.id).filter((k) => !isBonus(k));
+      // Pasta "Louvores - Bônus" do Drive: o que não é bônus pago (ex.: Hinos Infantis) vai para a biblioteca
+      if (/^b[oô]nus$/i.test(c.name)) loose.push(...kids);
+      else if (c.childIds.length) sections.push({ title: c.name, collections: kids });
       if (c.trackIds.length) loose.push(c);
     }
     // Coleções soltas na pasta principal (ex.: Hinos Infantis) entram na biblioteca, não num canto à parte

@@ -138,6 +138,10 @@ export class Releases {
   }
 
   // Só considera "igual" um asset totalmente enviado (state 'uploaded'); um 'starter' é resto de upload interrompido.
+  hasAsset(rel: Release, name: string): boolean {
+    return rel.assets.get(name)?.state === 'uploaded';
+  }
+
   hasSameSize(rel: Release, name: string, size: number): boolean {
     const a = rel.assets.get(name);
     return a !== undefined && a.state === 'uploaded' && a.size === size;

@@ -248,3 +248,25 @@ describe('tagFor', () => {
     expect(tag).not.toBe(tagFor('1MUSDtlpOW9jCGnFz-Y3c1lYwD3Df9Qh'));
   });
 });
+
+describe('planSync — vídeos viram áudio', () => {
+  const v = { id: 'v1', name: 'Lançamento Novo.mp4', parentId: 'A', md5: 'abcdef1234567890', size: 5000, convert: true };
+  const snap = snapshot([v]);
+  const plan = planSync(snap, buildTree(snap), null, BASE, NOW);
+
+  it('envia como .m4a com marca do conteúdo no nome', () => {
+    expect(plan.uploads[0]).toMatchObject({ fileId: 'v1', convert: true, assetName: 'lancamento-novo-abcdef12.m4a' });
+    const t = plan.catalog.tracks[0];
+    expect(t.fileName).toBe('Lançamento Novo.m4a');
+    expect(t.title).toBe('Lançamento Novo');
+    expect(t.url.endsWith('.m4a')).toBe(true);
+  });
+
+  it('na próxima execução reaproveita o tamanho real do áudio, não o do vídeo', () => {
+    const prev = finalizeCatalog(plan.catalog, new Set(), null);
+    prev.tracks[0].size = 900; // tamanho do .m4a gravado após a conversão
+    const again = planSync(snap, buildTree(snap), prev, BASE, NOW);
+    expect(again.uploads).toEqual([]);
+    expect(again.catalog.tracks[0].size).toBe(900);
+  });
+});

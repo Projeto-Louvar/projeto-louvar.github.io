@@ -9,8 +9,7 @@
       "color": "#1F4E79",
       "childIds": [
         "biblioteca",
-        "hinos-infantis",
-        "lancamentos"
+        "pasta-bonus"
       ],
       "trackIds": [],
       "zipUrls": [],
@@ -102,7 +101,7 @@
     {
       "id": "hinos-infantis",
       "name": "Bônus 1 - Hinos Infantis",
-      "parentId": "root",
+      "parentId": "pasta-bonus",
       "color": "#1F4E79",
       "childIds": [],
       "trackIds": [
@@ -114,13 +113,26 @@
     },
     {
       "id": "lancamentos",
-      "name": "Lançamentos 2026",
-      "parentId": "root",
+      "name": "Bônus 2 - Lançamentos 2026",
+      "parentId": "pasta-bonus",
       "color": "#7A1F3D",
       "childIds": [],
       "trackIds": [
         "f1"
       ],
+      "zipUrls": [],
+      "zipKey": ""
+    },
+    {
+      "id": "pasta-bonus",
+      "name": "Louvores - Bônus",
+      "parentId": "root",
+      "color": "#000000",
+      "childIds": [
+        "hinos-infantis",
+        "lancamentos"
+      ],
+      "trackIds": [],
       "zipUrls": [],
       "zipKey": ""
     }

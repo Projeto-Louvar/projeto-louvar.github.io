@@ -70,13 +70,14 @@ describe('seções: biblioteca e bônus', () => {
   const data = {
     rootId: 'R',
     collections: [
-      col('R', 'Louvores - SVA', null, ['B', 'I', 'L'], []),
+      col('R', 'Louvores - SVA', null, ['B', 'P'], []),
       col('B', 'Louvores - Biblioteca Completa', 'R', ['M', 'G'], []),
       col('M', 'Por Momento', 'B', ['N'], []),
       col('N', '9. Lançamentos 2027', 'M', [], ['t3']),
       col('G', 'Gospel', 'B', [], ['t1']),
-      col('I', 'Bônus 1 - Hinos Infantis', 'R', [], ['t2']),
-      col('L', 'Lançamentos 2026', 'R', ['L1'], []),
+      col('P', 'Louvores - Bônus', 'R', ['I', 'L'], []),
+      col('I', 'Bônus 1 - Hinos Infantis', 'P', [], ['t2']),
+      col('L', 'Bônus 2 - Lançamentos 2026', 'P', ['L1'], []),
       col('L1', 'Lançamentos - Março', 'L', [], ['t4']),
     ],
     tracks: [t('t1', 'G'), t('t2', 'I'), t('t3', 'N'), t('t4', 'L1')],

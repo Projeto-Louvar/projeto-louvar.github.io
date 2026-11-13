@@ -1,7 +1,7 @@
 import { createWriteStream } from 'node:fs';
 import { pipeline } from 'node:stream/promises';
 import { google, type drive_v3 } from 'googleapis';
-import { isAudioFile } from './titles';
+import { isAudioFile, isVideoFile } from './titles';
 import type { DriveAudio, DriveFolder, DriveSnapshot, SkippedFile } from './tree';
 
 const FOLDER = 'application/vnd.google-apps.folder';
@@ -47,8 +47,9 @@ export async function snapshotDrive(drive: drive_v3.Drive, rootId: string): Prom
         if (f.mimeType === FOLDER) {
           folders.push({ id: f.id, name: f.name, parentId: parent });
           queue.push(f.id);
-        } else if (isAudioFile(f.name) && f.md5Checksum) {
-          files.push({ id: f.id, name: f.name, parentId: parent, md5: f.md5Checksum, size: Number(f.size ?? 0) });
+        } else if ((isAudioFile(f.name) || isVideoFile(f.name)) && f.md5Checksum) {
+          const convert = !isAudioFile(f.name);
+          files.push({ id: f.id, name: f.name, parentId: parent, md5: f.md5Checksum, size: Number(f.size ?? 0), ...(convert ? { convert } : {}) });
         } else {
           skipped.push(f.name);
           skippedFiles.push({ name: f.name, parentId: parent, mimeType: f.mimeType ?? '' });

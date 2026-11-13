@@ -1,4 +1,4 @@
-import { appendFileSync, existsSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdtempSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Catalog, Track } from '../shared/catalog';
@@ -6,6 +6,7 @@ import { createDrive, downloadToFile, snapshotDrive } from './drive';
 import { RateLimitError, Releases } from './github';
 import { contentTypeFor, uniqueEntryNames } from './names';
 import { assetUrl, deletableNow, finalizeCatalog, keepGeneratedAt, massDeletionBlocked, nextPendingDeletes, planSync, zipReady } from './plan';
+import { extractAudio } from './convert';
 import { buildTree, driveReport } from './tree';
 import { buildZip } from './zipper';
 import { MAX_ZIP_BYTES, splitIntoParts, zipAssetName } from './zips';
@@ -41,6 +42,7 @@ async function main(): Promise<void> {
   const tmp = mkdtempSync(join(tmpdir(), 'louvores-'));
 
   const notReady = new Set<string>();
+  const realSize = new Map<string, number>(); // url → tamanho do áudio extraído de vídeo
   const failures: string[] = [];
   let uploaded = 0;
   let skipped = 0;
@@ -75,8 +77,22 @@ async function main(): Promise<void> {
     const file = join(tmp, job.assetName);
     try {
       const rel = await gh.ensure(job.tag, nameOf.get(job.tag) ?? job.tag);
-      if (gh.hasSameSize(rel, job.assetName, job.size)) skipped++;
-      else {
+      if (job.convert ? gh.hasAsset(rel, job.assetName) : gh.hasSameSize(rel, job.assetName, job.size)) {
+        skipped++;
+        if (job.convert) realSize.set(job.url, rel.assets.get(job.assetName)!.size);
+      } else if (job.convert) {
+        const video = `${file}.video`;
+        try {
+          await downloadToFile(drive, job.fileId, video);
+          await extractAudio(video, file);
+        } finally {
+          rmSync(video, { force: true });
+        }
+        realSize.set(job.url, statSync(file).size);
+        await gh.upload(rel, job.assetName, file, 'audio/mp4');
+        uploaded++;
+        if (uploaded % CHECKPOINT_EVERY === 0) checkpointDue = true;
+      } else {
         await downloadToFile(drive, job.fileId, file);
         await gh.upload(rel, job.assetName, file, contentTypeFor(job.assetName));
         uploaded++;
@@ -95,6 +111,7 @@ async function main(): Promise<void> {
     }
   }
 
+  for (const t of plan.catalog.tracks) { const n = realSize.get(t.url); if (n) t.size = n; }
   const catalog = finalizeCatalog(plan.catalog, notReady, prev);
   const trackById = new Map(catalog.tracks.map((t) => [t.id, t]));
   const replacedZips: string[] = [];
