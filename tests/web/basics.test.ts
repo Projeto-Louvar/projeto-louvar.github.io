@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Track } from '../../shared/catalog';
 import { countLabel, formatTime } from '../../web/src/format';
 import { hrefFor, parseHash } from '../../web/src/router';
-import { normalize, searchTracks } from '../../web/src/search';
+import { normalize, searchTracks, soundAlike } from '../../web/src/search';
 import { safeGet, safeSet } from '../../web/src/storage';
 
 const track = (id: string, title: string, artist = '', md5 = id): Track => ({
@@ -64,6 +64,55 @@ describe('search', () => {
   });
   it('busca vazia não retorna nada', () => {
     expect(searchTracks(tracks, '   ')).toEqual([]);
+  });
+});
+
+describe('soundAlike', () => {
+  it('aproxima grafias de mesmo som', () => {
+    expect(soundAlike('rocha')).toBe(soundAlike('roxa'));
+    expect(soundAlike('jesus')).toBe(soundAlike('jezus'));
+    expect(soundAlike('sacrificio')).toBe(soundAlike('sacrifisio'));
+    expect(soundAlike('rossana')).toBe(soundAlike('rosana'));
+    expect(soundAlike('hosana')).toBe(soundAlike('osana'));
+  });
+});
+
+describe('busca tolerante a erros de digitação', () => {
+  const tracks = [
+    track('1', 'Santo Pra Sempre', 'Fernandinho'),
+    track('2', 'Aleluia', 'Gabriela Rocha'),
+    track('3', 'Hino da Vitória', 'Cassiane'),
+    track('4', 'Alegria', 'Aline Barros'),
+    track('5', 'Santo', 'Aline Barros'),
+    track('6', 'Sacrifício', 'Ministério Zoe'),
+  ];
+  const ids = (q: string) => searchTracks(tracks, q).map((t) => t.id);
+
+  it('letra faltando, sobrando ou trocada', () => {
+    expect(ids('fernadinho')).toEqual(['1']);   // faltou o n
+    expect(ids('aleluiia')[0]).toBe('2');       // sobrou um i (Aleluia vem antes de Alegria)
+    expect(ids('vitoira cassiane')).toEqual(['3']); // letras invertidas
+    expect(ids('sacrificio')).toEqual(['6']);   // sem acento
+  });
+  it('palavra curta não aceita erro (evita resultado sem sentido)', () => {
+    expect(ids('hno')).toEqual([]);
+  });
+  it('última palavra vale pelo começo, para quem ainda está digitando', () => {
+    expect(ids('aleg')).toEqual(['4']);
+    expect(ids('hino da vit')).toEqual(['3']);
+  });
+  it('resultado exato vem antes do aproximado', () => {
+    expect(ids('santo')[0]).toBe('5');
+    expect(ids('santo')).toContain('1');
+  });
+  it('todas as palavras precisam bater', () => {
+    expect(ids('santo cassiane')).toEqual([]);
+  });
+  it('erros de som: grafias que soam igual', () => {
+    expect(ids('gabriela roxa')).toEqual(['2']);
+    expect(ids('jezus')).toEqual([]); // não existe na lista de teste, mas não quebra
+    expect(ids('sacrifisio')).toEqual(['6']);
+    expect(ids('ministerio zoé')).toEqual(['6']);
   });
 });
 

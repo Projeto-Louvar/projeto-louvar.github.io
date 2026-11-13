@@ -49,8 +49,10 @@ export class CatalogIndex {
 
   /** Músicas que podem ser buscadas e tocadas nesta versão do site. */
   get playableTracks(): Track[] {
-    return [...this.trks.values()];
+    // sempre a mesma lista: a busca monta o índice uma vez só
+    return (this.playable ??= [...this.trks.values()]);
   }
+  private playable?: Track[];
 
   tracksOf(id: string): Track[] {
     return (this.cols.get(id)?.trackIds ?? []).map((t) => this.trks.get(t)).filter((t): t is Track => !!t);
