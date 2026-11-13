@@ -8,7 +8,7 @@ import type { Player } from './player';
 import { hrefFor } from './router';
 import { searchTracks } from './search';
 import { coverImage, downloadAll, lockBadge, searchForm, tileGrid, trackList } from './components';
-import { FULL_EDITION, PAYMENT_INFO, WHATSAPP_URL } from './edition';
+import { FULL_EDITION, PIX, PRICES, WHATSAPP_URL } from './edition';
 import { creditList } from './covers';
 
 export interface Ctx {
@@ -103,20 +103,47 @@ function renderLocked(ctx: Ctx, id: string, back: string | null): HTMLElement {
   );
 }
 
-/** Como liberar o bônus: pagar, mandar o comprovante no WhatsApp, receber o link completo. */
+/** Como liberar o bônus: escolher o valor, fazer o Pix, mandar o comprovante no WhatsApp, receber o link completo. */
 function unlockPanel(): HTMLElement {
-  const step = (n: number, ...text: (Node | string | null)[]) =>
-    h('li', { class: 'unlock-step' }, h('span', { class: 'step-num', 'aria-hidden': 'true' }, String(n)), h('p', {}, ...text));
+  const step = (n: number, ...body: (Node | string | null)[]) =>
+    h('li', { class: 'unlock-step' }, h('span', { class: 'step-num', 'aria-hidden': 'true' }, String(n)), h('div', { class: 'unlock-body' }, ...body));
+  const prices = PRICES.length
+    ? h('ul', { class: 'prices' }, ...PRICES.map((p) =>
+        h('li', { class: 'price' },
+          p.icon ? h('span', { class: 'price-icon', 'aria-hidden': 'true' }, p.icon) : null,
+          h('span', { class: 'price-value' }, p.value),
+          p.label ? h('span', { class: 'price-label' }, p.label) : null)))
+    : null;
+  const pix = PIX ? pixBox(PIX) : null;
   return h('section', { class: 'locked-panel' },
     h('h2', {}, 'Conteúdo bônus'),
     h('p', {}, 'A Biblioteca Organizada por Momento e os Lançamentos são liberados depois do pagamento.'),
     h('ol', { class: 'unlock-steps' },
-      step(1, 'Faça o pagamento.', PAYMENT_INFO ? h('span', { class: 'pay-info' }, PAYMENT_INFO) : null),
-      step(2, 'Envie o comprovante pelo WhatsApp.'),
-      step(3, 'Você recebe um link novo, com tudo liberado.')),
-    WHATSAPP_URL
-      ? h('a', { class: 'btn btn-primary btn-big', href: WHATSAPP_URL, target: '_blank', rel: 'noopener' }, 'Enviar comprovante pelo WhatsApp')
-      : h('p', { class: 'note' }, 'Para pagar e enviar o comprovante, fale com quem enviou o link do Projeto Louvar.'));
+      step(1, h('p', {}, prices ? 'Escolha um valor:' : 'Faça o pagamento.'), prices),
+      pix ? step(2, h('p', {}, 'Faça o Pix para esta chave:'), pix) : null,
+      step(pix ? 3 : 2, h('p', {}, 'Envie o comprovante pelo WhatsApp.'),
+        WHATSAPP_URL
+          ? h('a', { class: 'btn btn-primary btn-big', href: WHATSAPP_URL, target: '_blank', rel: 'noopener' }, 'Enviar comprovante pelo WhatsApp')
+          : h('p', { class: 'note' }, 'Fale com quem enviou o link do Projeto Louvar.')),
+      step(pix ? 4 : 3, h('p', {}, 'Você recebe um link novo, com tudo liberado.'))));
+}
+
+function pixBox(pix: NonNullable<typeof PIX>): HTMLElement {
+  const status = h('p', { class: 'pix-status', role: 'status' });
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(pix.copy);
+      status.textContent = 'Chave copiada! Agora abra o aplicativo do banco e cole na área do Pix.';
+    } catch {
+      status.textContent = `Não deu para copiar sozinho. Digite a chave no banco: ${pix.copy}`;
+    }
+  };
+  return h('div', { class: 'pix' },
+    h('p', { class: 'pix-kind' }, pix.kind ? `Chave Pix · ${pix.kind}` : 'Chave Pix'),
+    h('p', { class: 'pix-key' }, pix.display),
+    pix.name ? h('p', { class: 'pix-name' }, pix.name) : null,
+    h('button', { class: 'btn', type: 'button', onclick: () => void copy() }, 'Copiar chave Pix'),
+    status);
 }
 
 export function renderSearch(ctx: Ctx, q: string): HTMLElement {

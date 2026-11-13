@@ -92,7 +92,9 @@ jobs:
           FULL_PATH: ${{ secrets.FULL_PATH }}
           # WhatsApp que recebe os comprovantes e instruções de pagamento (variáveis do repositório)
           VITE_WHATSAPP: ${{ vars.WHATSAPP }}
-          VITE_PAYMENT_INFO: ${{ vars.PAYMENT_INFO }}
+          VITE_PIX_KEY: ${{ vars.PIX_KEY }}
+          VITE_PIX_NAME: ${{ vars.PIX_NAME }}
+          VITE_PRICES: ${{ vars.PRICES }}
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

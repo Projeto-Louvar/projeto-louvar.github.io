@@ -91,8 +91,23 @@ h2 { font-family: var(--display); font-weight: 700; font-size: 1.4rem; margin: 3
 .locked-panel > :last-child { margin-bottom: 0; }
 .unlock-steps { list-style: none; margin: 0 0 20px; padding: 0; display: grid; gap: 12px; }
 .unlock-step { display: flex; align-items: flex-start; gap: 12px; }
-.unlock-step p { margin: 8px 0 0; }
-.pay-info { display: block; margin-top: 6px; font-weight: 700; color: var(--accent); overflow-wrap: anywhere; }
+.unlock-body { flex: 1; min-width: 0; display: grid; gap: 10px; }
+.unlock-body > p { margin: 8px 0 0; }
+.prices { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.price {
+  display: grid; grid-template-columns: auto 1fr; grid-template-areas: "icon value" "icon label"; column-gap: 12px; align-items: center;
+  padding: 10px 14px; border: 2px solid var(--line); border-radius: var(--radius); background: var(--surface);
+}
+.price-icon { grid-area: icon; font-size: 1.5rem; }
+.price-value { grid-area: value; font-weight: 700; font-size: 1.15rem; color: var(--accent); }
+.price-label { grid-area: label; font-size: 0.9rem; color: var(--muted); }
+.pix { padding: 14px; border: 2px solid var(--accent); border-radius: var(--radius); background: var(--surface); display: grid; gap: 6px; justify-items: start; }
+.pix p { margin: 0; }
+.pix-key { font-size: 1.35rem; font-weight: 700; letter-spacing: 0.02em; font-variant-numeric: tabular-nums; }
+.pix-kind { font-size: 0.85rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.pix-name { color: var(--muted); font-size: 0.95rem; margin-bottom: 6px !important; }
+.pix-status { font-size: 0.95rem; color: var(--accent); }
+.pix-status:empty { display: none; }
 .section-note { margin: -6px 0 14px; }
 .photo-note { margin: 24px 0 0; font-size: 0.75rem; color: var(--muted); overflow-wrap: anywhere; }
 .tile-img { display: block; width: 100%; height: auto; aspect-ratio: 1; object-fit: cover; background: var(--card-soft); }
