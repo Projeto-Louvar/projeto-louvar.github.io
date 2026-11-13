@@ -6,7 +6,7 @@ import { createDrive, downloadToFile, snapshotDrive } from './drive';
 import { RateLimitError, Releases } from './github';
 import { contentTypeFor, uniqueEntryNames } from './names';
 import { assetUrl, deletableNow, finalizeCatalog, keepGeneratedAt, massDeletionBlocked, nextPendingDeletes, planSync, zipReady } from './plan';
-import { buildTree } from './tree';
+import { buildTree, driveReport } from './tree';
 import { buildZip } from './zipper';
 import { MAX_ZIP_BYTES, splitIntoParts, zipAssetName } from './zips';
 
@@ -172,6 +172,7 @@ async function main(): Promise<void> {
     ...(rateLimited ? ['- Limite de uso do GitHub atingido; o envio continua no próximo ciclo.'] : []),
     ...(fatal ? ['- ERRO: acesso negado pelo GitHub (HTTP 401/403); ciclo interrompido.'] : []),
     `- Arquivos ignorados (não são áudio): ${snap.skipped?.length ?? 0}`,
+    ...driveReport(snap),
     `- Falhas: ${failures.length}`,
     ...failures.slice(0, 50).map((f) => `  - ${f}`),
   ].join('\n');

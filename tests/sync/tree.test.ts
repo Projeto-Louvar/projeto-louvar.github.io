@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildTree, type DriveSnapshot } from '../../sync/tree';
+import { buildTree, driveReport, type DriveSnapshot } from '../../sync/tree';
 
 const snap: DriveSnapshot = {
   rootId: 'R',
@@ -57,5 +57,37 @@ describe('buildTree', () => {
       ],
     });
     expect(chain.map((c) => [c.id, c.parentId])).toEqual([['R', null], ['P3', 'R'], ['Q', 'R']]);
+  });
+});
+
+describe('pastas bônus e diagnóstico do Drive', () => {
+  const s: DriveSnapshot = {
+    rootId: 'R',
+    folders: [
+      { id: 'R', name: 'Louvores', parentId: null },
+      { id: 'L', name: 'Lançamentos 2027', parentId: 'R' },
+      { id: 'L1', name: 'Março', parentId: 'L' },
+      { id: 'V', name: '9. Lançamentos 2026', parentId: 'R' },
+      { id: 'E', name: 'Vazia', parentId: 'R' },
+    ],
+    files: [{ id: 'f1', name: 'a.mp3', parentId: 'L1', md5: 'm1', size: 1 }],
+    skippedFiles: [
+      { name: 'clipe.mp4', parentId: 'V', mimeType: 'video/mp4' },
+      { name: 'Atalho', parentId: 'V', mimeType: 'application/vnd.google-apps.shortcut' },
+      { name: 'capa.jpg', parentId: 'E', mimeType: 'image/jpeg' },
+    ],
+  };
+
+  it('pasta de lançamentos com uma só subpasta não perde o nome', () => {
+    expect(buildTree(s).map((c) => c.name)).toEqual(['Louvores', 'Lançamentos 2027', 'Março']);
+  });
+
+  it('relatório mostra pastas que não aparecem, tipos ignorados e pastas bônus', () => {
+    const r = driveReport(s).join('\n');
+    expect(r).toContain('.mp4 (1)');
+    expect(r).toContain('atalho (1)');
+    expect(r).toContain('9. Lançamentos 2026 — 2 arquivo(s) de outro tipo');
+    expect(r).toContain('Lançamentos 2027 — 1 áudio(s), 0 outro(s)');
+    expect(r).toContain('Pastas sem nenhum áudio (não aparecem no site): 2');
   });
 });

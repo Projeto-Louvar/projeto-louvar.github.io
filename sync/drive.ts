@@ -2,7 +2,7 @@ import { createWriteStream } from 'node:fs';
 import { pipeline } from 'node:stream/promises';
 import { google, type drive_v3 } from 'googleapis';
 import { isAudioFile } from './titles';
-import type { DriveAudio, DriveFolder, DriveSnapshot } from './tree';
+import type { DriveAudio, DriveFolder, DriveSnapshot, SkippedFile } from './tree';
 
 const FOLDER = 'application/vnd.google-apps.folder';
 const META_TIMEOUT_MS = 120_000;
@@ -24,6 +24,7 @@ export async function snapshotDrive(drive: drive_v3.Drive, rootId: string): Prom
   const folders: DriveFolder[] = [{ id: rootId, name: root.data.name ?? 'Louvores', parentId: null }];
   const files: DriveAudio[] = [];
   const skipped: string[] = [];
+  const skippedFiles: SkippedFile[] = [];
   const queue = [rootId];
 
   while (queue.length) {
@@ -50,12 +51,13 @@ export async function snapshotDrive(drive: drive_v3.Drive, rootId: string): Prom
           files.push({ id: f.id, name: f.name, parentId: parent, md5: f.md5Checksum, size: Number(f.size ?? 0) });
         } else {
           skipped.push(f.name);
+          skippedFiles.push({ name: f.name, parentId: parent, mimeType: f.mimeType ?? '' });
         }
       }
       pageToken = res.data.nextPageToken ?? undefined;
     } while (pageToken);
   }
-  return { rootId, folders, files, skipped };
+  return { rootId, folders, files, skipped, skippedFiles };
 }
 
 export async function downloadToFile(drive: drive_v3.Drive, fileId: string, dest: string): Promise<void> {
