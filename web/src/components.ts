@@ -50,7 +50,7 @@ export function bonusTile(idx: CatalogIndex, locked: boolean): HTMLElement | nul
       h('span', { class: 'tile-count' }, locked ? `${count} · bloqueado` : count)));
 }
 
-/** Grade de cartões. "extra" (o cartão do Bônus) entra como 2º, na primeira linha, para ser visto sem rolar. */
+/** Grade de cartões. "extra" (o cartão do Bônus) entra como 4º cartão (fecha a grade 2×2 no celular). */
 export function tileGrid(idx: CatalogIndex, cols: Collection[], extra: HTMLElement | null = null): HTMLElement {
   const tiles = cols.map((c) => {
     const locked = idx.isLocked(c.id);
@@ -60,7 +60,7 @@ export function tileGrid(idx: CatalogIndex, cols: Collection[], extra: HTMLEleme
         h('span', { class: 'tile-name' }, c.name),
         h('span', { class: 'tile-count' }, locked ? `${countLabel(idx.totalTracks(c.id))} · bloqueado` : countLabel(idx.totalTracks(c.id)))));
   });
-  if (extra) tiles.splice(Math.min(1, tiles.length), 0, extra as HTMLAnchorElement);
+  if (extra) tiles.splice(Math.min(3, tiles.length), 0, extra as HTMLAnchorElement);
   return h('div', { class: 'tiles' }, ...tiles);
 }
 
