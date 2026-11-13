@@ -74,17 +74,23 @@ h2 { font-family: var(--display); font-weight: 700; font-size: 1.4rem; margin: 3
   display: flex; flex-direction: column; overflow: hidden; text-decoration: none;
   color: var(--text); background: var(--card); border: 2px solid var(--line); border-radius: var(--radius);
 }
-.tile-media { position: relative; display: block; }
+.tile-media { position: relative; display: block; overflow: hidden; }
+/* Bônus trancado: foto colorida desfocada, selo dourado no centro */
 .lock-badge {
-  position: absolute; top: 8px; left: 8px; display: inline-flex; align-items: center; gap: 6px;
-  padding: 4px 10px 4px 8px; border-radius: 999px; font-size: 0.8rem; font-weight: 700;
-  background: var(--accent); color: var(--on-accent);
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  display: inline-flex; align-items: center; gap: 8px; white-space: nowrap;
+  padding: 8px 16px 8px 12px; border-radius: 999px; font-size: 0.95rem; font-weight: 700;
+  background: var(--accent); color: var(--on-accent); box-shadow: 0 2px 12px rgb(0 0 0 / 0.35);
 }
-.lock-badge svg { width: 16px; height: 16px; }
-.tile.is-locked .tile-img { filter: grayscale(0.85) brightness(0.55); }
-.col-media { position: relative; flex: none; display: block; }
-.col-media .col-img { filter: grayscale(0.85) brightness(0.55); }
-.col-media .lock-badge { top: 6px; left: 6px; font-size: 0.7rem; padding: 3px 8px 3px 6px; }
+.lock-badge svg { width: 20px; height: 20px; }
+.tile.is-locked .tile-img, .col-media .col-img { filter: blur(7px) saturate(1.15); transform: scale(1.15); }
+.col-media {
+  position: relative; flex: none; display: block; overflow: hidden;
+  border: 2px solid var(--accent); border-radius: var(--radius);
+}
+.col-media .col-img { border: 0; border-radius: 0; }
+.col-media .lock-badge { gap: 0; padding: 8px; }
+.col-media .lock-badge span { display: none; } /* capa pequena: só o cadeado */
 .locked-panel { max-width: 560px; padding: 20px; border: 2px solid var(--accent); border-radius: var(--radius); background: var(--accent-soft); }
 .locked-panel h2 { margin-top: 0; color: var(--accent); }
 .locked-panel p { margin: 0 0 16px; }
