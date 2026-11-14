@@ -270,3 +270,61 @@ describe('planSync — vídeos viram áudio', () => {
     expect(again.catalog.tracks[0].size).toBe(900);
   });
 });
+
+describe('planSync — mesma música uma vez só', () => {
+  const snapM = (files: DriveSnapshot['files']): DriveSnapshot => ({
+    rootId: 'R',
+    folders: [
+      { id: 'R', name: 'Louvores', parentId: null },
+      { id: 'A', name: 'Gospel', parentId: 'R' },
+      { id: 'L', name: 'Lançamentos 2027', parentId: 'R' },
+      { id: 'X', name: 'Outra', parentId: 'R' },
+    ],
+    files,
+  });
+  const fA1 = { id: 'a1', name: 'Fernandinho - Raridade.mp3', parentId: 'A', md5: 'ra1', size: 9_000_000 };
+  const fA2 = { id: 'a2', name: '10 - Fernandinho - Raridade.mp3', parentId: 'A', md5: 'ra2', size: 8_000_000 }; // mesma música, mesma playlist
+  const fX = { id: 'x1', name: 'Fernandinho - Raridade.mp3', parentId: 'X', md5: 'ra3', size: 7_000_000 };
+  const fL = { id: 'l1', name: 'Fernandinho - Raridade.mp3', parentId: 'L', md5: 'ra4', size: 12_000_000 }; // melhor cópia, trancada
+  const q = new Map([['ra1', { dur: 240, kbps: 256 }], ['ra2', { dur: 240, kbps: 192 }], ['ra3', { dur: 240, kbps: 128 }], ['ra4', { dur: 240, kbps: 320 }]]);
+  const s = snapM([fA1, fA2, fX, fL]);
+  const plan = planSync(s, buildTree(s), null, BASE, NOW, {}, q);
+  const t = (id: string) => plan.catalog.tracks.find((x) => x.id === id)!;
+
+  it('todas as faixas da música apontam para a melhor cópia (canônica)', () => {
+    const canonUrl = t('l1').srcUrl;
+    for (const id of ['a1', 'a2', 'x1', 'l1']) expect(t(id).url).toBe(canonUrl);
+    expect(new Set(['a1', 'a2', 'x1', 'l1'].map((id) => t(id).songId)).size).toBe(1);
+  });
+
+  it('dentro da mesma playlist a música aparece uma vez, na primeira posição', () => {
+    // a pasta é ordenada pelo nome: "10 - …" vem antes e é a primeira ocorrência
+    expect(plan.catalog.collections.find((c) => c.id === 'A')!.trackIds).toEqual(['a2']);
+  });
+
+  it('envia só a canônica e, como ela está trancada, a melhor cópia livre', () => {
+    expect(plan.uploads.map((u) => u.fileId).sort()).toEqual(['a1', 'l1']);
+    expect(t('x1').srcUrl).toBe(''); // não enviada: outra cópia é usada
+    expect(t('a1').srcUrl).not.toBe('');
+  });
+
+  it('versão pública toca a melhor cópia livre, nunca o arquivo do bônus', async () => {
+    const { publicCatalog } = await import('../../shared/bonus');
+    const fin = finalizeCatalog(plan.catalog, new Set(), null);
+    const pub = publicCatalog(fin);
+    const lockedFile = t('l1').srcUrl;
+    for (const tr of pub.tracks.filter((x) => x.collectionId !== 'L')) {
+      expect(tr.url).not.toBe(lockedFile);
+      expect(tr.url).toBe(t('a1').srcUrl);
+    }
+    expect(pub.collections.find((c) => c.id === 'X')!.zipUrls).toEqual([]); // .zip seria da cópia trancada
+  });
+
+  it('arquivo já enviado de cópia não usada continua referenciado (não é apagado)', () => {
+    const prev = finalizeCatalog(plan.catalog, new Set(), null);
+    const s2 = snapM([fA1, fA2, fX, fL]);
+    const again = planSync(s2, buildTree(s2), { ...prev, tracks: prev.tracks.map((x) => (x.id === 'x1' ? { ...x, srcUrl: `${BASE}/releases/download/c-X/velho.mp3` } : x)) }, BASE, NOW, {}, q);
+    const fin2 = finalizeCatalog(again.catalog, new Set(), null);
+    expect(orphanUrls({ ...prev, tracks: [...prev.tracks, { ...prev.tracks[0], id: 'z', srcUrl: `${BASE}/releases/download/c-X/velho.mp3` }] }, fin2)).not.toContain(`${BASE}/releases/download/c-X/velho.mp3`);
+  });
+});

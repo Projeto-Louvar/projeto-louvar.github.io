@@ -2,7 +2,9 @@ import { appendFileSync, existsSync, mkdtempSync, readFileSync, renameSync, rmSy
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Catalog, Track } from '../shared/catalog';
-import { createDrive, downloadToFile, snapshotDrive } from './drive';
+import { createDrive, downloadToFile, snapshotDrive, tokenSource } from './drive';
+import { probeFiles } from './probe';
+import type { Quality } from './plan';
 import { RateLimitError, Releases } from './github';
 import { contentTypeFor, uniqueEntryNames } from './names';
 import { assetUrl, deletableNow, finalizeCatalog, keepGeneratedAt, massDeletionBlocked, nextPendingDeletes, planSync, zipReady } from './plan';
@@ -39,7 +41,12 @@ async function main(): Promise<void> {
   const tree = buildTree(snap);
   // Correções manuais de nomes: id do arquivo no Drive → { title, artist }
   const overrides = existsSync('sync/title-overrides.json') ? JSON.parse(readFileSync('sync/title-overrides.json', 'utf8')) : {};
-  const plan = planSync(snap, tree, prev, gh.repoBase, new Date().toISOString(), overrides);
+  // Duração e bitrate de cada arquivo (para escolher a melhor cópia de cada música); cache no catálogo, por md5
+  const quality = new Map<string, Quality>();
+  for (const t of prev?.tracks ?? []) if (t.dur !== undefined) quality.set(t.md5, { dur: t.dur, kbps: t.kbps ?? 0 });
+  const probeDeadline = started + Math.min(budgetMs * 0.35, 100 * 60_000);
+  const probed = await probeFiles(snap.files, quality, tokenSource(env('GDRIVE_SA_JSON')), probeDeadline);
+  const plan = planSync(snap, tree, prev, gh.repoBase, new Date().toISOString(), overrides, quality);
   const nameOf = new Map(tree.map((c) => [`c-${c.id}`, c.name]));
   const tmp = mkdtempSync(join(tmpdir(), 'louvores-'));
 
@@ -113,7 +120,12 @@ async function main(): Promise<void> {
     }
   }
 
-  for (const t of plan.catalog.tracks) { const n = realSize.get(t.url); if (n) t.size = n; }
+  for (const t of plan.catalog.tracks) {
+    const n = realSize.get(t.url);
+    if (n) t.size = n; // tamanho real do áudio extraído (o do Drive é o do vídeo)
+    const own = t.srcUrl ? realSize.get(t.srcUrl) : undefined;
+    if (own && t.srcUrl !== t.url) t.srcSize = own;
+  }
   const catalog = finalizeCatalog(plan.catalog, notReady, prev);
   const trackById = new Map(catalog.tracks.map((t) => [t.id, t]));
   const replacedZips: string[] = [];
@@ -190,6 +202,8 @@ async function main(): Promise<void> {
     ...(blocked ? [`- ATENÇÃO: exclusão em massa bloqueada (${toDelete.length} arquivos). Confira o Drive; para liberar, rode manualmente o workflow 'Site' marcando 'allow_mass_delete'.`] : []),
     ...(rateLimited ? ['- Limite de uso do GitHub atingido; o envio continua no próximo ciclo.'] : []),
     ...(fatal ? ['- ERRO: acesso negado pelo GitHub (HTTP 401/403); ciclo interrompido.'] : []),
+    `- Músicas únicas: ${new Set(catalog.tracks.map((t) => t.songId)).size} (arquivos usados: ${new Set(catalog.tracks.map((t) => t.url)).size})`,
+    `- Medição de qualidade: ${probed.measured} medidos, ${probed.failed} falharam, ${probed.pending} para o próximo ciclo`,
     `- Arquivos ignorados (não são áudio): ${snap.skipped?.length ?? 0}`,
     ...driveReport(snap),
     `- Falhas: ${failures.length}`,

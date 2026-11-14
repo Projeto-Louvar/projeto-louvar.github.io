@@ -268,6 +268,12 @@ test.describe('bônus: versão pública e versão completa', () => {
     const freeCols = new Map(full.collections.map((c) => [c.id, c.name]));
     const leaked = (pub.tracks as T[]).filter((t) => !locked.has(t.collectionId) && bonusMd5.has(t.md5) && !/infantis/i.test(freeCols.get(t.collectionId) ?? ''));
     expect(leaked).toEqual([]);
+    // e nenhuma faixa grátis TOCA um arquivo do bônus (a melhor cópia da música pode estar numa pasta trancada)
+    type F = { collectionId: string; md5: string; url: string; srcUrl?: string };
+    const md5OfFile = new Map((full.tracks as F[]).filter((t) => t.srcUrl || t.url).map((t) => [t.srcUrl || t.url, t.md5]));
+    const playsBonusFile = (pub.tracks as F[]).filter((t) => !locked.has(t.collectionId) && t.url
+      && bonusMd5.has(md5OfFile.get(t.url) ?? '') && !/infantis/i.test(freeCols.get(t.collectionId) ?? ''));
+    expect(playsBonusFile).toEqual([]);
   });
 });
 
@@ -298,4 +304,13 @@ test('na busca, música do bônus não parece estar tocando', async ({ page }) =
   await page.goto('/#/busca?q=louvor novo');
   await expect(page.locator('.track.is-locked')).toHaveCount(1);
   await expect(page.locator('.track.is-current')).toHaveCount(0);
+});
+
+test('busca: cada música uma vez, com o botão de em quais playlists ela está', async ({ page }) => {
+  await page.goto('/#/busca?q=hino da vitoria');
+  await expect(page.locator('.track')).toHaveCount(1);
+  const box = page.locator('.in-playlists summary.btn').first();
+  await expect(box).toHaveText(/Está em \d+ playlists?/);
+  await box.click();
+  await expect(page.locator('.in-playlists-list a.btn').first()).toBeVisible();
 });

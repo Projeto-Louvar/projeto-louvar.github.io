@@ -119,3 +119,30 @@ describe('tocar aleatório', () => {
     expect(idx.allTracksUnder('R').map((t) => t.id)).toEqual(['t1', 't2', 't3', 't4', 't5']);
   });
 });
+
+describe('mesma música no site', () => {
+  const t = (id: string, c: string, songId: string): Track => ({ id, title: id, artist: '', fileName: id, collectionId: c, md5: id, size: 1, url: `u/${songId}`, songId });
+  const cat = {
+    generatedAt: '', rootId: 'R',
+    collections: [
+      { id: 'R', name: 'Raiz', parentId: null, color: '#000', childIds: ['P', 'Q'], trackIds: [], zipUrls: [], zipKey: '' },
+      { id: 'P', name: 'Playlist P', parentId: 'R', color: '#000', childIds: ['P1'], trackIds: ['p1', 'p2'], zipUrls: [], zipKey: '' },
+      { id: 'P1', name: 'Sub', parentId: 'P', color: '#000', childIds: [], trackIds: ['p3'], zipUrls: [], zipKey: '' },
+      { id: 'Q', name: 'Playlist Q', parentId: 'R', color: '#000', childIds: [], trackIds: ['q1'], zipUrls: [], zipKey: '' },
+    ],
+    tracks: [t('p1', 'P', 'sA'), t('p2', 'P', 'sA'), t('p3', 'P1', 'sA'), t('q1', 'Q', 'sA')],
+  } as unknown as Catalog;
+  const ix = new CatalogIndex(cat);
+
+  it('dentro da playlist, uma vez só; contador sem repetição entre subpastas', () => {
+    expect(ix.tracksOf('P').map((x) => x.id)).toEqual(['p1']);
+    expect(ix.totalTracks('P')).toBe(1);
+  });
+  it('busca e aleatório: uma entrada por música', () => {
+    expect(ix.searchableTracks.map((x) => x.songId)).toEqual(['sA']);
+    expect(ix.allTracksUnder('R')).toHaveLength(1);
+  });
+  it('sabe em quais playlists a música está', () => {
+    expect(ix.playlistsOf(ix.searchableTracks[0]).map((c) => c.id)).toEqual(['P', 'P1', 'Q']);
+  });
+});

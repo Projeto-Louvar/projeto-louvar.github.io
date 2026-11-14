@@ -85,7 +85,7 @@ describe('música repetida fica só no bônus', () => {
 
   it('busca da versão grátis encontra a música do bônus, trancada', () => {
     const ix = new CatalogIndex(publicCatalog(cat), { lockBonus: true });
-    expect(ix.searchableTracks.map((t) => t.id).sort()).toEqual(['g2', 'i1', 'm1', 'm2']);
+    expect(ix.searchableTracks.map((t) => t.id).sort()).toEqual(['g2', 'i1', 'm1']); // m2 é o mesmo arquivo de i1: uma entrada só
     expect(ix.isLockedTrack(ix.searchableTracks.find((t) => t.id === 'm1')!)).toBe(true);
     expect(ix.playableTracks.map((t) => t.id).sort()).toEqual(['g2', 'i1']);
   });

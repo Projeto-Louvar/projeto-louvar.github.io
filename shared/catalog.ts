@@ -6,7 +6,12 @@ export interface Track {
   collectionId: string;
   md5: string;
   size: number;        // bytes
-  url: string;         // URL pública do áudio
+  url: string;         // URL pública do áudio que toca/baixa: a melhor cópia desta música (canônica)
+  songId?: string;     // mesma música = mesmo songId (pode estar em várias playlists)
+  srcUrl?: string;     // arquivo próprio desta faixa no GitHub ('' = não foi enviado: outra cópia é usada)
+  dur?: number;        // duração do arquivo próprio em segundos (0 = não foi possível medir)
+  kbps?: number;       // bitrate do áudio do arquivo próprio
+  srcSize?: number;    // tamanho do arquivo próprio, quando size é o da cópia canônica
 }
 
 export interface Collection {

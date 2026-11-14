@@ -64,11 +64,12 @@ export function tileGrid(idx: CatalogIndex, cols: Collection[], extra: HTMLEleme
   return h('div', { class: 'tiles' }, ...tiles);
 }
 
-export function trackList(ctx: Ctx, all: Track[]): HTMLElement {
+export function trackList(ctx: Ctx, all: Track[], opts: { showPlaylists?: boolean } = {}): HTMLElement {
   // músicas do bônus (versão grátis) aparecem trancadas e ficam fora da fila do tocador
   const tracks = all.filter((t) => !ctx.idx.isLockedTrack(t));
   let n = 0;
-  const list = h('ol', { class: 'tracks' }, ...all.map((t) => ctx.idx.isLockedTrack(t) ? lockedRow(t, ++n) : (() => {
+  const withPlaylists = (li: HTMLElement, t: Track) => { if (opts.showPlaylists) { const d = playlistsBox(ctx, t); if (d) li.append(d); } return li; };
+  const list = h('ol', { class: 'tracks' }, ...all.map((t) => ctx.idx.isLockedTrack(t) ? withPlaylists(lockedRow(t, ++n), t) : withPlaylists((() => {
     const i = tracks.indexOf(t);
     return h('li', { class: 'track', 'data-id': t.id },
       h('button', {
@@ -80,13 +81,24 @@ export function trackList(ctx: Ctx, all: Track[]): HTMLElement {
           h('span', { class: 'track-title' }, t.title),
           t.artist ? h('span', { class: 'track-artist' }, t.artist) : null)),
       h('a', { class: 'btn btn-small', href: t.url, download: t.fileName, 'aria-label': `Baixar ${t.title}` }, 'Baixar'));
-  })()));
+  })(), t)));
   ctx.onCleanup(ctx.player.subscribe((s) => {
     for (const li of Array.from(list.children) as HTMLElement[]) {
       li.classList.toggle('is-current', !!li.dataset.id && li.dataset.id === s.current?.id); // linha trancada não tem id
     }
   }));
   return list;
+}
+
+/** "Está em 5 playlists": botão com caixa que abre a lista de playlists (cada uma também um botão). */
+function playlistsBox(ctx: Ctx, t: Track): HTMLElement | null {
+  const cols = ctx.idx.playlistsOf(t);
+  if (!cols.length) return null;
+  const label = cols.length === 1 ? 'Está em 1 playlist' : `Está em ${cols.length} playlists`;
+  return h('details', { class: 'in-playlists' },
+    h('summary', { class: 'btn btn-small' }, label),
+    h('div', { class: 'in-playlists-list' }, ...cols.map((c) =>
+      h('a', { class: 'btn btn-small', href: hrefFor({ name: 'collection', id: c.id }) }, ctx.idx.isLocked(c.id) ? `🔒 ${c.name}` : c.name))));
 }
 
 /** Música do bônus na busca da versão grátis: nome, cadeado e botão para ver como liberar. */

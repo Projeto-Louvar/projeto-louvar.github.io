@@ -8,6 +8,12 @@ const FOLDER = 'application/vnd.google-apps.folder';
 const META_TIMEOUT_MS = 120_000;
 const MEDIA_TIMEOUT_MS = 900_000;
 
+/** Token de acesso do Drive (para o ffprobe ler os arquivos). O GoogleAuth guarda e renova sozinho. */
+export function tokenSource(saJson: string): () => Promise<string> {
+  const auth = new google.auth.GoogleAuth({ credentials: JSON.parse(saJson), scopes: ['https://www.googleapis.com/auth/drive.readonly'] });
+  return async () => (await auth.getAccessToken()) ?? '';
+}
+
 export function createDrive(saJson: string): drive_v3.Drive {
   const auth = new google.auth.GoogleAuth({
     credentials: JSON.parse(saJson),

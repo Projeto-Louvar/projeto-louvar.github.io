@@ -68,8 +68,9 @@ export function searchTracks(tracks: Track[], query: string, limit = 200): Track
   const out: Track[] = [];
   for (const r of results) {
     const t = byId.get(String(r.id));
-    if (!t || seen.has(t.md5)) continue; // o mesmo áudio em duas coleções aparece uma vez só
-    seen.add(t.md5);
+    const key = t?.songId ?? t?.md5;
+    if (!t || !key || seen.has(key)) continue; // a mesma música aparece uma vez só
+    seen.add(key);
     out.push(t);
     if (out.length >= limit) break;
   }

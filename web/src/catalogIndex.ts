@@ -5,6 +5,9 @@ export { BONUS_PATTERN };
 
 export interface HomeSection { title: string; collections: Collection[] }
 
+/** Mesma música = mesma chave (catálogos antigos, sem songId, usam o arquivo). */
+export const songKey = (t: Track) => t.songId ?? t.md5;
+
 // Pastas de lançamentos formam a seção Bônus (ver shared/bonus.ts).
 export const BONUS_TITLE = 'Bônus';
 
@@ -35,7 +38,11 @@ export class CatalogIndex {
     // Na versão trancada, as músicas bônus não tocam nem entram nas listas; só aparecem trancadas na busca
     this.trks = new Map(data.tracks.filter((t) => !this.locked.has(t.collectionId)).map((t) => [t.id, t]));
     this.lockedTrks = data.tracks.filter((t) => this.locked.has(t.collectionId));
+    this.allById = new Map(data.tracks.map((t) => [t.id, t]));
   }
+  private allById: Map<string, Track>;
+  private songSets = new Map<string, Set<string>>();
+  private where?: Map<string, Collection[]>;
 
   get root(): Collection {
     return this.cols.get(this.data.rootId)!;
@@ -62,7 +69,25 @@ export class CatalogIndex {
 
   /** Para a busca: as liberadas e, na versão grátis, também as do bônus (que aparecem trancadas). */
   get searchableTracks(): Track[] {
-    return (this.searchable ??= [...this.playableTracks, ...this.lockedTrks]);
+    // uma entrada por música: a liberada, se houver; senão a do bônus (aparece trancada)
+    if (!this.searchable) {
+      const seen = new Set<string>();
+      this.searchable = [...this.playableTracks, ...this.lockedTrks].filter((t) => !seen.has(songKey(t)) && !!seen.add(songKey(t)));
+    }
+    return this.searchable;
+  }
+
+  /** Playlists em que a música está (com ou sem cadeado), na ordem do acervo. */
+  playlistsOf(t: Track): Collection[] {
+    if (!this.where) {
+      this.where = new Map();
+      for (const col of this.cols.values()) {
+        if (col.id === this.data.rootId) continue;
+        const keys = new Set(col.trackIds.map((id) => this.allById.get(id)).filter((x): x is Track => !!x).map(songKey));
+        for (const k of keys) (this.where.get(k) ?? this.where.set(k, []).get(k)!).push(col);
+      }
+    }
+    return this.where.get(songKey(t)) ?? [];
   }
   private searchable?: Track[];
 
@@ -76,7 +101,7 @@ export class CatalogIndex {
     const out: Track[] = [];
     const seen = new Set<string>();
     const walk = (cid: string) => {
-      for (const t of this.tracksOf(cid)) if (!seen.has(t.md5)) { seen.add(t.md5); out.push(t); }
+      for (const t of this.tracksOf(cid)) if (!seen.has(songKey(t))) { seen.add(songKey(t)); out.push(t); }
       for (const k of this.cols.get(cid)?.childIds ?? []) walk(k);
     };
     walk(id);
@@ -84,7 +109,22 @@ export class CatalogIndex {
   }
 
   tracksOf(id: string): Track[] {
-    return (this.cols.get(id)?.trackIds ?? []).map((t) => this.trks.get(t)).filter((t): t is Track => !!t);
+    // dentro da mesma playlist, cada música uma vez só (o sync já faz; aqui garante para catálogos antigos)
+    const seen = new Set<string>();
+    return (this.cols.get(id)?.trackIds ?? []).map((t) => this.trks.get(t))
+      .filter((t): t is Track => !!t && !seen.has(songKey(t)) && !!seen.add(songKey(t)));
+  }
+
+  /** Músicas diferentes na coleção e nas subpastas (com ou sem cadeado). */
+  private songsUnder(id: string): Set<string> {
+    const hit = this.songSets.get(id);
+    if (hit) return hit;
+    const c = this.cols.get(id);
+    const set = new Set<string>();
+    for (const tid of c?.trackIds ?? []) { const t = this.allById.get(tid); if (t) set.add(songKey(t)); }
+    for (const k of c?.childIds ?? []) for (const s of this.songsUnder(k)) set.add(s);
+    this.songSets.set(id, set);
+    return set;
   }
 
   childrenOf(id: string): Collection[] {
@@ -94,10 +134,10 @@ export class CatalogIndex {
 
 
   totalTracks(id: string): number {
+    // quantas músicas diferentes (sem contar repetição entre as subpastas)
     const hit = this.totals.get(id);
     if (hit !== undefined) return hit;
-    const c = this.cols.get(id);
-    const n = c ? c.trackIds.length + c.childIds.reduce((s, k) => s + this.totalTracks(k), 0) : 0;
+    const n = this.songsUnder(id).size;
     this.totals.set(id, n);
     return n;
   }
@@ -117,11 +157,13 @@ export class CatalogIndex {
   /** Todas as músicas do bônus, sem repetir. */
   bonusTracks(): Track[] {
     const seen = new Set<string>();
-    return this.bonusCollections().flatMap((c) => this.allTracksUnder(c.id)).filter((t) => !seen.has(t.md5) && !!seen.add(t.md5));
+    return this.bonusCollections().flatMap((c) => this.allTracksUnder(c.id)).filter((t) => !seen.has(songKey(t)) && !!seen.add(songKey(t)));
   }
 
   bonusCount(): number {
-    return this.bonusCollections().reduce((n, c) => n + this.totalTracks(c.id), 0);
+    const all = new Set<string>();
+    for (const c of this.bonusCollections()) for (const s of this.songsUnder(c.id)) all.add(s);
+    return all.size;
   }
 
   /** Seções da tela inicial. O bônus não é seção: vira um cartão único dentro da biblioteca (ver renderHome). */

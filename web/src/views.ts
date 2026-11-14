@@ -195,7 +195,7 @@ export function renderSearch(ctx: Ctx, q: string): HTMLElement {
     h('h1', { tabindex: '-1' }, 'Buscar'),
     searchForm(q),
     summary,
-    results.length ? trackList(ctx, results) : null,
+    results.length ? trackList(ctx, results, { showPlaylists: true }) : null,
   );
 }
 

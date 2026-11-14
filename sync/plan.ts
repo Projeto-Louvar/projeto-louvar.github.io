@@ -1,12 +1,16 @@
 import { createHash } from 'node:crypto';
 import type { Catalog, Collection, Track } from '../shared/catalog';
 import { safeAssetName, slugify } from './names';
+import { bonusIds, freeEligibleIds } from '../shared/bonus';
+import { bestCopy } from '../shared/quality';
 import { titlesFor, type TitleOverrides } from './cleanTitles';
+import { planSongs } from './songs';
 import { audioNameFor } from './titles';
 import type { DriveSnapshot, TreeCollection } from './tree';
 
 export const PALETTE = ['#1F4E79', '#7A1F3D', '#2E6B3A', '#8A4B0F', '#4B2E83', '#0F6E6E', '#9B2C2C', '#3D4F5C'];
 
+export interface Quality { dur: number; kbps: number }
 export interface UploadJob { fileId: string; fileName: string; tag: string; assetName: string; url: string; size: number; convert?: boolean }
 export interface ZipJob { collectionId: string; tag: string; zipKey: string; baseName: string }
 export interface SyncPlan { catalog: Catalog; uploads: UploadJob[]; zips: ZipJob[] }
@@ -29,16 +33,21 @@ export function planSync(
   repoBase: string,
   now: string,
   titleOverrides: TitleOverrides = {},
+  quality: Map<string, Quality> = new Map(),
 ): SyncPlan {
   const files = new Map(snap.files.map((f) => [f.id, f]));
   // Nome da música e cantor, limpos com o contexto da pasta e do acervo inteiro
   const titles = titlesFor(snap.files.map((f) => ({ id: f.id, name: f.convert ? audioNameFor(f.name) : f.name, folderId: f.parentId })), titleOverrides);
   const prevTracks = new Map((prev?.tracks ?? []).map((t) => [t.id, t]));
   const prevCols = new Map((prev?.collections ?? []).map((c) => [c.id, c]));
+  // arquivo próprio de cada faixa anterior (antes da deduplicação, url era o arquivo próprio)
+  const ownUrl = (t: Track) => (t.srcUrl !== undefined ? t.srcUrl : t.url);
   const urlByMd5 = new Map<string, string>();
-  for (const t of prev?.tracks ?? []) if (t.url) urlByMd5.set(t.md5, t.url);
+  for (const t of prev?.tracks ?? []) if (ownUrl(t)) urlByMd5.set(t.md5, ownUrl(t));
+  const uploadedUrls = new Set(urlByMd5.values()); // já existem no GitHub
 
   const uploads: UploadJob[] = [];
+  const tagOf = new Map<string, string>(); // coleção → nome (para o .zip)
   const zips: ZipJob[] = [];
   const tracks: Track[] = [];
   const collections: Collection[] = [];
@@ -47,7 +56,7 @@ export function planSync(
     const tag = tagFor(tc.id);
     const prefix = `${repoBase}/releases/download/${tag}/`;
     const taken = new Set<string>();
-    for (const t of prev?.tracks ?? []) if (t.url.startsWith(prefix)) taken.add(decodeURIComponent(t.url.slice(prefix.length)));
+    for (const t of prev?.tracks ?? []) for (const u of [t.url, ownUrl(t)]) if (u.startsWith(prefix)) taken.add(decodeURIComponent(u.slice(prefix.length)));
     // nomes pendentes de exclusão ainda existem no GitHub: não podem ser reaproveitados
     for (const u of prev?.pendingDeletes ?? []) if (u.startsWith(prefix)) taken.add(decodeURIComponent(u.slice(prefix.length)));
 
@@ -57,7 +66,7 @@ export function planSync(
       const f = files.get(fid)!;
       const old = prevTracks.get(f.id);
       let url: string;
-      if (old && old.md5 === f.md5 && old.url) url = old.url;
+      if (old && old.md5 === f.md5 && ownUrl(old)) url = ownUrl(old);
       else if (urlByMd5.has(f.md5)) url = urlByMd5.get(f.md5)!;
       else {
         // Vídeo convertido: o nome leva parte do md5 do original, então "já existe no GitHub" basta para pular
@@ -71,17 +80,14 @@ export function planSync(
       const { title, artist } = titles.get(f.id)!;
       const fileName = f.convert ? audioNameFor(f.name) : f.name;
       // tamanho do áudio já convertido, se conhecido (o do Drive é o do vídeo)
-      const size = f.convert && old?.url === url ? old.size : f.size;
-      tracks.push({ id: f.id, title, artist, fileName, collectionId: tc.id, md5: f.md5, size, url });
+      const size = f.convert && old && ownUrl(old) === url ? (old.srcSize ?? old.size) : f.size;
+      const q = quality.get(f.md5) ?? (old && old.md5 === f.md5 && old.dur !== undefined ? { dur: old.dur, kbps: old.kbps ?? 0 } : undefined);
+      tracks.push({ id: f.id, title, artist, fileName, collectionId: tc.id, md5: f.md5, size, url, srcUrl: url, ...(q ? { dur: q.dur, kbps: q.kbps } : {}) });
       trackIds.push(f.id);
-      md5s.push(f.md5);
     }
+    tagOf.set(tc.id, tc.name);
 
-    const zipKey = trackIds.length ? zipKeyFor(md5s) : '';
     const old = prevCols.get(tc.id);
-    const keepZip = !!old && old.zipKey === zipKey && old.zipUrls.length > 0;
-    if (trackIds.length && !keepZip) zips.push({ collectionId: tc.id, tag, zipKey, baseName: slugify(tc.name) || 'colecao' });
-
     collections.push({
       id: tc.id,
       name: tc.name,
@@ -94,7 +100,55 @@ export function planSync(
     });
   });
 
-  return { catalog: { generatedAt: now, rootId: snap.rootId, collections, tracks }, uploads, zips };
+  // ---- mesma música: uma vez só no site, em quantas playlists precisar ----
+  const songs = planSongs(tracks);
+  const byId = new Map(tracks.map((t) => [t.id, t]));
+  const eligible = freeEligibleIds(collections, tracks, snap.rootId);
+  const locked = bonusIds(collections, snap.rootId);
+  // arquivos necessários: a melhor cópia de cada música e, se ela estiver trancada no bônus, a melhor cópia livre
+  const members = new Map<string, Track[]>();
+  for (const t of tracks) { const k = songs.songOf.get(t.id)!; (members.get(k) ?? members.set(k, []).get(k)!).push(t); }
+  const needed = new Set<string>();
+  for (const [songId, list] of members) {
+    const canon = byId.get(songs.canonical.get(songId)!)!;
+    needed.add(canon.srcUrl!);
+    const free = list.filter((t) => eligible.has(t.id));
+    if (free.length && locked.has(canon.collectionId)) needed.add(bestCopy(free).srcUrl!);
+  }
+  const keptUploads = uploads.filter((u) => needed.has(u.url));
+  const queued = new Set(keptUploads.map((u) => u.url));
+  for (const t of tracks) {
+    const songId = songs.songOf.get(t.id)!;
+    const canon = byId.get(songs.canonical.get(songId)!)!;
+    t.songId = songId;
+    if (!t.artist && songs.artistFound.has(t.id)) t.artist = songs.artistFound.get(t.id)!;
+    // arquivo próprio só existe se já está no GitHub ou vai ser enviado agora
+    if (!uploadedUrls.has(t.srcUrl!) && !queued.has(t.srcUrl!)) t.srcUrl = '';
+  }
+  for (const t of tracks) {
+    const canon = byId.get(songs.canonical.get(t.songId!)!)!;
+    if (canon === t) continue;
+    // toca/baixa a melhor cópia; o nome no .zip leva a extensão do arquivo canônico
+    t.url = canon.srcUrl!;
+    t.srcSize = t.size;
+    t.size = canon.size;
+    const ext = canon.fileName.match(/\.[^.]+$/)?.[0] ?? '';
+    t.fileName = t.fileName.replace(/\.[^.]+$/, '') + ext;
+  }
+  for (const c of collections) {
+    // dentro da mesma playlist, a música aparece uma vez só, na primeira posição
+    const seen = new Set<string>();
+    c.trackIds = c.trackIds.filter((id) => { const k = byId.get(id)!.songId!; if (seen.has(k)) return false; seen.add(k); return true; });
+    const md5s = c.trackIds.map((id) => { const t = byId.get(id)!; return byId.get(songs.canonical.get(t.songId!)!)!.md5; });
+    const zipKey = c.trackIds.length ? zipKeyFor(md5s) : '';
+    const old = prevCols.get(c.id);
+    const keepZip = !!old && old.zipKey === zipKey && old.zipUrls.length > 0;
+    c.zipUrls = c.trackIds.length && keepZip ? [...old!.zipUrls] : c.trackIds.length ? [...(old?.zipUrls ?? [])] : [];
+    c.zipKey = c.trackIds.length ? (old?.zipKey ?? '') : '';
+    if (c.trackIds.length && !keepZip) zips.push({ collectionId: c.id, tag: tagFor(c.id), zipKey, baseName: slugify(tagOf.get(c.id) ?? c.name) || 'colecao' });
+  }
+
+  return { catalog: { generatedAt: now, rootId: snap.rootId, collections, tracks }, uploads: keptUploads, zips };
 }
 
 export function finalizeCatalog(cat: Catalog, notReady: Set<string>, prev: Catalog | null = null): Catalog {
@@ -134,7 +188,7 @@ export function finalizeCatalog(cat: Catalog, notReady: Set<string>, prev: Catal
 
 function allUrls(cat: Catalog): Set<string> {
   const urls = new Set<string>();
-  for (const t of cat.tracks) urls.add(t.url);
+  for (const t of cat.tracks) { urls.add(t.url); if (t.srcUrl) urls.add(t.srcUrl); } // arquivo próprio não é apagado
   for (const c of cat.collections) for (const u of c.zipUrls) urls.add(u);
   return urls;
 }

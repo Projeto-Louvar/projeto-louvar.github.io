@@ -163,6 +163,13 @@ h2 { font-family: var(--display); font-weight: 700; font-size: 1.4rem; margin: 3
 .track.is-locked .track-title { color: var(--muted); display: flex; align-items: center; gap: 8px; }
 .track-lock svg { display: block; width: 18px; height: 18px; color: var(--accent); flex: none; }
 .btn-unlock { white-space: normal; max-width: 9em; line-height: 1.15; }
+.track { flex-wrap: wrap; }
+.in-playlists { flex-basis: 100%; margin: -4px 0 12px 3.4em; }
+.in-playlists summary { display: inline-flex; list-style: none; min-height: 44px; font-size: 0.85rem; }
+.in-playlists summary::-webkit-details-marker { display: none; }
+.in-playlists summary::after { content: ' ▸'; white-space: pre; }
+.in-playlists[open] summary::after { content: ' ▾'; }
+.in-playlists-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .track.is-current .track-title { color: var(--accent); }
 
 .player {
