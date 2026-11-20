@@ -42,7 +42,7 @@ export function bonusTile(idx: CatalogIndex, locked: boolean): HTMLElement | nul
   const cols = idx.bonusCollections();
   if (!cols.length) return null;
   const cover = cols.find((c) => /lan[cç]amento/i.test(c.name)) ?? cols[0];
-  const count = countLabel(idx.bonusCount());
+  const count = 'Momentos + lançamentos'; // sem número: a curadoria repete músicas que também são grátis
   return h('a', { class: locked ? 'tile is-locked is-bonus' : 'tile is-bonus', href: hrefFor({ name: 'bonus' }) },
     h('span', { class: 'tile-media' }, coverImage(idx, cover.id, 'tile-img'), locked ? lockBadge() : null),
     h('span', { class: 'tile-body' },

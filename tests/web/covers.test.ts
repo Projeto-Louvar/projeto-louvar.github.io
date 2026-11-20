@@ -41,3 +41,24 @@ describe('creditList', () => {
     expect(list.find((c) => c.collection === 'Antiga Z')?.artist).toBe('autor não informado');
   });
 });
+
+describe('capas do acervo novo, pelo nome da pasta', () => {
+  it('toda pasta do mapa aponta para uma foto que existe', async () => {
+    const { COVER_BY_NAME } = await import('../../web/src/coverNames');
+    const data = (await import('../../web/src/coverData.json')).default as Record<string, { name: string }>;
+    const owners = new Set(Object.values(data).map((c) => c.name));
+    expect(Object.values(COVER_BY_NAME).filter((o) => !owners.has(o))).toEqual([]);
+  });
+  it('pasta de id novo recebe a foto pelo nome; "Vol. 01" herda do pai', () => {
+    const col = (id: string, name: string, parentId: string | null, childIds: string[]): Collection =>
+      ({ id, name, parentId, childIds, trackIds: [], color: '#000', zipUrls: [], zipKey: '' });
+    const cat = { generatedAt: '', rootId: 'R', tracks: [], collections: [
+      col('R', 'Louvores -  2.0', null, ['M']), col('M', 'Para Cada Momento', 'R', ['A']),
+      col('A', 'Adoração Profunda', 'M', ['V']), col('V', 'Vol. 01', 'A', []),
+    ] } as Catalog;
+    const ix = new CatalogIndex(cat);
+    expect(coverFor(ix, 'A')?.name).toBe('5. Adoração profunda');
+    expect(coverFor(ix, 'V')?.name).toBe('5. Adoração profunda');
+    expect(coverFor(ix, 'M')?.name).toBe('Biblioteca Organizada por Momento');
+  });
+});

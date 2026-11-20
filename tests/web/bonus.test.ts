@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bonusIds, fullCatalog, publicCatalog, withExclusiveBonus } from '../../shared/bonus';
+import { bonusIds, exclusiveIds, fullCatalog, publicCatalog, withExclusiveBonus } from '../../shared/bonus';
 import type { Catalog, Collection, Track } from '../../shared/catalog';
 import { CatalogIndex } from '../../web/src/catalogIndex';
 
@@ -18,11 +18,11 @@ const data: Catalog = {
 };
 
 describe('bônus', () => {
-  it('Biblioteca Organizada por Momento e Lançamentos (qualquer ano) são bônus; Hinos Infantis não', () => {
-    const names = ['Biblioteca Organizada por Momento', 'Lançamentos 2027', 'lancamentos', 'Hinos Infantis', 'Gospel Atual'];
+  it('Para Cada Momento, Organizada por Momento e Lançamentos (qualquer ano) são bônus; Hinos Infantis não', () => {
+    const names = ['Biblioteca Organizada por Momento', 'Lançamentos 2027', 'lancamentos', 'Hinos Infantis', 'Gospel Atual', 'Para Cada Momento'];
     const cols = names.map((n, i) => col(`c${i}`, n, 'R', [], []));
     const ids = bonusIds([col('R', 'Raiz', null, cols.map((c) => c.id), []), ...cols], 'R');
-    expect(names.filter((_, i) => ids.has(`c${i}`))).toEqual(['Biblioteca Organizada por Momento', 'Lançamentos 2027', 'lancamentos']);
+    expect(names.filter((_, i) => ids.has(`c${i}`))).toEqual(['Biblioteca Organizada por Momento', 'Lançamentos 2027', 'lancamentos', 'Para Cada Momento']);
   });
 
   it('pastas de lançamentos e tudo dentro delas', () => {
@@ -63,7 +63,7 @@ describe('música repetida fica só no bônus', () => {
       col('R', 'Raiz', null, ['G', 'I', 'M'], []),
       col('G', 'Gospel', 'R', [], ['g1', 'g2'], true),
       col('I', 'Hinos Infantis', 'R', [], ['i1'], true),
-      col('M', 'Biblioteca Organizada por Momento', 'R', [], ['m1', 'm2'], true),
+      col('M', 'Lançamentos 2027', 'R', [], ['m1', 'm2'], true),
     ],
     tracks: [md('g1', 'G', 'aaa'), md('g2', 'G', 'bbb'), md('i1', 'I', 'ccc'), md('m1', 'M', 'aaa'), md('m2', 'M', 'ccc')],
   };
@@ -93,5 +93,39 @@ describe('música repetida fica só no bônus', () => {
   it('coleção que ficou vazia não aparece', () => {
     const only: Catalog = { ...cat, collections: cat.collections.map((c) => (c.id === 'G' ? { ...c, trackIds: ['g1'] } : c)), tracks: cat.tracks.filter((t) => t.id !== 'g2') };
     expect(new CatalogIndex(only).childrenOf('R').map((c) => c.id)).toEqual(['I', 'M']);
+  });
+});
+
+describe('bônus na pasta nova: Lançamentos exclusivos, Para Cada Momento é curadoria', () => {
+  const md = (id: string, c: string, md5: string, srcUrl = `u/${md5}`): Track => ({ ...tr(id, c), md5, url: srcUrl, srcUrl });
+  const cat: Catalog = {
+    generatedAt: '', rootId: 'R',
+    collections: [
+      col('R', 'Louvores -  2.0', null, ['G', 'P', 'L'], []),
+      col('G', 'Gospel Atual', 'R', [], ['g1', 'g2'], true),
+      col('P', 'Para Cada Momento', 'R', ['P1'], []),
+      col('P1', 'Adoração Profunda', 'P', [], ['p1', 'p2'], true),
+      col('L', 'Lançamentos', 'R', [], ['l1'], true),
+    ],
+    tracks: [md('g1', 'G', 'aaa'), md('g2', 'G', 'bbb'), md('p1', 'P1', 'aaa'), md('p2', 'P1', 'ppp'), md('l1', 'L', 'bbb')],
+  };
+
+  it('só Lançamentos é exclusivo', () => {
+    expect([...exclusiveIds(cat.collections, 'R')]).toEqual(['L']);
+    expect([...bonusIds(cat.collections, 'R')].sort()).toEqual(['L', 'P', 'P1']);
+  });
+
+  it('música de Para Cada Momento continua na playlist grátis; a de Lançamentos sai', () => {
+    const g = withExclusiveBonus(cat).collections.find((c) => c.id === 'G')!;
+    expect(g.trackIds).toEqual(['g1']); // g1 (também em Adoração Profunda) fica; g2 (também em Lançamentos) sai
+  });
+
+  it('versão grátis: nada trancado toca, e nenhum arquivo próprio (srcUrl) é exposto', () => {
+    const pub = publicCatalog(cat);
+    expect(pub.tracks.filter((t) => ['P1', 'L'].includes(t.collectionId)).every((t) => t.url === '')).toBe(true);
+    expect(pub.tracks.find((t) => t.id === 'g1')!.url).toBe('u/aaa');
+    expect(JSON.stringify(pub)).not.toContain('u/ppp'); // só existe na curadoria trancada
+    expect(JSON.stringify(pub)).not.toContain('u/bbb'); // só existe em Lançamentos
+    expect(pub.tracks.some((t) => 'srcUrl' in t)).toBe(false);
   });
 });

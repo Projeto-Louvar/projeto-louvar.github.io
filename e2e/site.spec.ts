@@ -1,6 +1,6 @@
 import { devices, expect, test, type Browser } from '@playwright/test';
 import { readFileSync } from 'node:fs';
-import { BONUS_PATTERN } from '../shared/bonus';
+import { BONUS_PATTERN, EXCLUSIVE_PATTERN } from '../shared/bonus';
 
 // Os testes usam sempre o catálogo de amostra, não o acervo real que o sync grava em web/public.
 test.beforeEach(async ({ page }) => {
@@ -262,18 +262,24 @@ test.describe('bônus: versão pública e versão completa', () => {
     full.collections.filter((c) => BONUS_PATTERN.test(c.name)).forEach((c) => mark(c.id));
     // músicas do bônus podem aparecer (trancadas, na busca), mas sem o link do áudio
     expect(pub.tracks.filter((t) => locked.has(t.collectionId) && (t as { url?: string }).url)).toEqual([]);
-    // nenhuma música liberada na versão grátis tem o mesmo áudio de uma do bônus (exceto Hinos Infantis)
-    type T = { collectionId: string; md5: string };
-    const bonusMd5 = new Set((full.tracks as T[]).filter((t) => locked.has(t.collectionId)).map((t) => t.md5));
-    const freeCols = new Map(full.collections.map((c) => [c.id, c.name]));
-    const leaked = (pub.tracks as T[]).filter((t) => !locked.has(t.collectionId) && bonusMd5.has(t.md5) && !/infantis/i.test(freeCols.get(t.collectionId) ?? ''));
-    expect(leaked).toEqual([]);
-    // e nenhuma faixa grátis TOCA um arquivo do bônus (a melhor cópia da música pode estar numa pasta trancada)
+    // Lançamentos são exclusivos: nenhuma faixa liberada tem o mesmo áudio de uma delas (exceto Hinos Infantis).
+    // "Para Cada Momento" é curadoria: as músicas dela podem continuar nas playlists grátis.
     type F = { collectionId: string; md5: string; url: string; srcUrl?: string };
+    const exclusive = new Set<string>();
+    const markEx = (id: string) => { exclusive.add(id); full.collections.find((c) => c.id === id)?.childIds.forEach(markEx); };
+    full.collections.filter((c) => EXCLUSIVE_PATTERN.test(c.name)).forEach((c) => markEx(c.id));
+    const exclusiveMd5 = new Set((full.tracks as F[]).filter((t) => exclusive.has(t.collectionId)).map((t) => t.md5));
+    const colName = new Map(full.collections.map((c) => [c.id, c.name]));
+    const isFree = (t: F) => !locked.has(t.collectionId);
+    const leaked = (pub.tracks as F[]).filter((t) => isFree(t) && exclusiveMd5.has(t.md5) && !/infantis/i.test(colName.get(t.collectionId) ?? ''));
+    expect(leaked).toEqual([]);
+    // nenhuma faixa grátis TOCA um arquivo que só existe em coleção trancada
     const md5OfFile = new Map((full.tracks as F[]).filter((t) => t.srcUrl || t.url).map((t) => [t.srcUrl || t.url, t.md5]));
-    const playsBonusFile = (pub.tracks as F[]).filter((t) => !locked.has(t.collectionId) && t.url
-      && bonusMd5.has(md5OfFile.get(t.url) ?? '') && !/infantis/i.test(freeCols.get(t.collectionId) ?? ''));
-    expect(playsBonusFile).toEqual([]);
+    const freeMd5 = new Set((full.tracks as F[]).filter(isFree).map((t) => t.md5));
+    const playsLocked = (pub.tracks as F[]).filter((t) => isFree(t) && t.url && md5OfFile.has(t.url) && !freeMd5.has(md5OfFile.get(t.url)!));
+    expect(playsLocked).toEqual([]);
+    // o arquivo próprio (srcUrl) não vai para a versão grátis
+    expect((pub.tracks as F[]).filter((t) => t.srcUrl !== undefined)).toEqual([]);
   });
 });
 

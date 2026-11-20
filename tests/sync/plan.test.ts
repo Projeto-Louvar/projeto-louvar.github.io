@@ -328,3 +328,14 @@ describe('planSync — mesma música uma vez só', () => {
     expect(orphanUrls({ ...prev, tracks: [...prev.tracks, { ...prev.tracks[0], id: 'z', srcUrl: `${BASE}/releases/download/c-X/velho.mp3` }] }, fin2)).not.toContain(`${BASE}/releases/download/c-X/velho.mp3`);
   });
 });
+
+describe('planSync — .zip só até 250 músicas', () => {
+  it('coleção grande fica sem .zip; pequena tem', () => {
+    const many = Array.from({ length: 251 }, (_, i) => ({ id: `b${i}`, name: `Cantor ${i} - Música ${i}.mp3`, parentId: 'A', md5: `bm${i}`, size: 1 }));
+    const few = [{ id: 's1', name: 'Cantor - Uma.mp3', parentId: 'B', md5: 'sm1', size: 1 }];
+    const s = snapshot([...many, ...few]);
+    const plan = planSync(s, buildTree(s), null, BASE, NOW);
+    expect(plan.zips.map((z) => z.collectionId)).toEqual(['B']);
+    expect(plan.catalog.collections.find((c) => c.id === 'A')!.zipKey).toBe('');
+  });
+});

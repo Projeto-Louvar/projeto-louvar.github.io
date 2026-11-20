@@ -100,16 +100,16 @@ export function renderBonus(ctx: Ctx): HTMLElement {
   const cols = ctx.idx.bonusCollections();
   const locked = !FULL_EDITION;
   const cover = cols.find((c) => /lan[cç]amento/i.test(c.name)) ?? cols[0];
-  const names = cols.map((c) => c.name);
-  const list = names.length > 1 ? `${names.slice(0, -1).join(', ')} e ${names[names.length - 1]}` : names[0] ?? '';
+  const exclusive = ctx.idx.exclusiveCount();
   return page(
     backLink(hrefFor({ name: 'home' })),
     h('header', { class: 'col-header' },
       cover ? (locked ? h('span', { class: 'col-media' }, coverImage(ctx.idx, cover.id, 'col-img'), lockBadge()) : coverImage(ctx.idx, cover.id, 'col-img')) : null,
       h('div', { class: 'col-title' },
         h('h1', { tabindex: '-1' }, 'Bônus'),
-        h('p', {}, countLabel(ctx.idx.bonusCount())))),
-    list ? h('p', { class: 'bonus-intro' }, `Inclui ${list}.`) : null,
+        // só o número de lançamentos exclusivos (sem repetições e sem o que também é grátis)
+        exclusive ? h('p', {}, `${exclusive} lançamento${exclusive === 1 ? '' : 's'} exclusivo${exclusive === 1 ? '' : 's'}`) : null)),
+    h('p', { class: 'bonus-intro' }, 'Playlists prontas para cada momento do dia + lançamentos exclusivos.'),
     locked
       ? unlockPanel()
       : h('div', { class: 'actions' }, shuffleButton(ctx, () => ctx.idx.bonusTracks(), true)),
@@ -154,7 +154,7 @@ function unlockPanel(): HTMLElement {
   const pix = PIX ? pixBox(PIX) : null;
   return h('section', { class: 'locked-panel' },
     h('h2', {}, 'Conteúdo bônus'),
-    h('p', {}, 'A Biblioteca Organizada por Momento e os Lançamentos são liberados depois do pagamento.'),
+    h('p', {}, 'Playlists prontas para cada momento do dia + lançamentos exclusivos, liberados depois do pagamento.'),
     h('ol', { class: 'unlock-steps' },
       step(1, h('p', {}, prices ? 'Escolha um valor:' : 'Faça o pagamento.'), prices),
       pix ? step(2, h('p', {}, 'Faça o Pix para esta chave:'), pix) : null,

@@ -8,6 +8,9 @@ import { planSongs } from './songs';
 import { audioNameFor } from './titles';
 import type { DriveSnapshot, TreeCollection } from './tree';
 
+// .zip só para coleções de até 250 músicas (acima disso ficaria enorme; no celular o .zip nem é usado)
+export const MAX_ZIP_TRACKS = 250;
+
 export const PALETTE = ['#1F4E79', '#7A1F3D', '#2E6B3A', '#8A4B0F', '#4B2E83', '#0F6E6E', '#9B2C2C', '#3D4F5C'];
 
 export interface Quality { dur: number; kbps: number }
@@ -140,12 +143,13 @@ export function planSync(
     const seen = new Set<string>();
     c.trackIds = c.trackIds.filter((id) => { const k = byId.get(id)!.songId!; if (seen.has(k)) return false; seen.add(k); return true; });
     const md5s = c.trackIds.map((id) => { const t = byId.get(id)!; return byId.get(songs.canonical.get(t.songId!)!)!.md5; });
-    const zipKey = c.trackIds.length ? zipKeyFor(md5s) : '';
+    const zippable = c.trackIds.length > 0 && c.trackIds.length <= MAX_ZIP_TRACKS;
+    const zipKey = zippable ? zipKeyFor(md5s) : '';
     const old = prevCols.get(c.id);
-    const keepZip = !!old && old.zipKey === zipKey && old.zipUrls.length > 0;
-    c.zipUrls = c.trackIds.length && keepZip ? [...old!.zipUrls] : c.trackIds.length ? [...(old?.zipUrls ?? [])] : [];
-    c.zipKey = c.trackIds.length ? (old?.zipKey ?? '') : '';
-    if (c.trackIds.length && !keepZip) zips.push({ collectionId: c.id, tag: tagFor(c.id), zipKey, baseName: slugify(tagOf.get(c.id) ?? c.name) || 'colecao' });
+    const keepZip = zippable && !!old && old.zipKey === zipKey && old.zipUrls.length > 0;
+    c.zipUrls = zippable ? [...(old?.zipUrls ?? [])] : [];
+    c.zipKey = zippable ? (old?.zipKey ?? '') : '';
+    if (zippable && !keepZip) zips.push({ collectionId: c.id, tag: tagFor(c.id), zipKey, baseName: slugify(tagOf.get(c.id) ?? c.name) || 'colecao' });
   }
 
   return { catalog: { generatedAt: now, rootId: snap.rootId, collections, tracks }, uploads: keptUploads, zips };

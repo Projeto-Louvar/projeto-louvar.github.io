@@ -1,4 +1,4 @@
-import { BONUS_PATTERN, bonusIds, withExclusiveBonus } from '../../shared/bonus';
+import { BONUS_PATTERN, bonusIds, exclusiveIds, withExclusiveBonus } from '../../shared/bonus';
 import type { Catalog, Collection, Track } from '../../shared/catalog';
 
 export { BONUS_PATTERN };
@@ -158,6 +158,14 @@ export class CatalogIndex {
   bonusTracks(): Track[] {
     const seen = new Set<string>();
     return this.bonusCollections().flatMap((c) => this.allTracksUnder(c.id)).filter((t) => !seen.has(songKey(t)) && !!seen.add(songKey(t)));
+  }
+
+  /** Lançamentos exclusivos: músicas das pastas exclusivas que não estão em nenhuma playlist grátis (sem repetição). */
+  exclusiveCount(): number {
+    const excl = exclusiveIds(this.data.collections, this.data.rootId);
+    const lockedAll = bonusIds(this.data.collections, this.data.rootId);
+    const freeSongs = new Set(this.data.tracks.filter((t) => !lockedAll.has(t.collectionId)).map(songKey));
+    return new Set(this.data.tracks.filter((t) => excl.has(t.collectionId) && !freeSongs.has(songKey(t))).map(songKey)).size;
   }
 
   bonusCount(): number {

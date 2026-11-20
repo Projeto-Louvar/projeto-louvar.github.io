@@ -4,10 +4,24 @@
 import type { Catalog, Collection, Track } from './catalog';
 import { bestCopy } from './quality';
 
-export const BONUS_PATTERN = /lan[cç]amentos?|organizada por momento/i;
+// Pastas trancadas na versão grátis (e tudo dentro delas)
+export const BONUS_PATTERN = /lan[cç]amentos?|organizada por momento|para cada momento/i;
+
+// Dentro do bônus, só estas são EXCLUSIVAS: as músicas delas saem das playlists grátis (mesmo arquivo).
+// "Para Cada Momento" é curadoria: trancada, mas as músicas continuam nas outras playlists grátis.
+export const EXCLUSIVE_PATTERN = /lan[cç]amentos?/i;
 
 // Exceção pedida: os Hinos Infantis continuam grátis mesmo existindo também dentro do bônus
 export const KEEP_FREE_PATTERN = /infantis/i;
+
+/** Coleções cujas músicas são exclusivas do bônus (Lançamentos e o que estiver dentro). */
+export function exclusiveIds(collections: Collection[], rootId: string): Set<string> {
+  const byId = new Map(collections.map((c) => [c.id, c]));
+  const out = new Set<string>();
+  const mark = (id: string) => { if (out.has(id)) return; out.add(id); byId.get(id)?.childIds.forEach(mark); };
+  for (const c of collections) if (c.id !== rootId && EXCLUSIVE_PATTERN.test(c.name)) mark(c.id);
+  return out;
+}
 
 /** Coleções bônus e tudo o que está dentro delas. */
 export function bonusIds(collections: Collection[], rootId: string): Set<string> {
@@ -28,7 +42,8 @@ export function bonusIds(collections: Collection[], rootId: string): Set<string>
  */
 export function freeEligibleIds(collections: Collection[], tracks: Track[], rootId: string): Set<string> {
   const bonus = bonusIds(collections, rootId);
-  const bonusMd5 = new Set(tracks.filter((t) => bonus.has(t.collectionId)).map((t) => t.md5));
+  const exclusive = exclusiveIds(collections, rootId);
+  const bonusMd5 = new Set(tracks.filter((t) => exclusive.has(t.collectionId)).map((t) => t.md5));
   const keepFree = new Set(collections.filter((c) => !bonus.has(c.id) && KEEP_FREE_PATTERN.test(c.name)).map((c) => c.id));
   return new Set(tracks.filter((t) => !bonus.has(t.collectionId) && (keepFree.has(t.collectionId) || !bonusMd5.has(t.md5))).map((t) => t.id));
 }
@@ -90,7 +105,8 @@ export function publicCatalog(catalog: Catalog): Catalog {
       const noZip = locked.has(col.id) || changedCols.has(col.id) || trackIds.length !== col.trackIds.length;
       return noZip ? { ...col, trackIds, zipUrls: [], zipKey: '' } : { ...col, trackIds };
     }),
-    tracks,
+    // o arquivo próprio (srcUrl) é só para o sync: na versão grátis não vai, para não expor áudio trancado
+    tracks: tracks.map(({ srcUrl: _s, srcSize: _z, ...t }) => t),
   };
 }
 

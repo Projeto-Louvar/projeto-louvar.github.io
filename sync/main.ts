@@ -37,7 +37,9 @@ async function main(): Promise<void> {
   const drive = createDrive(env('GDRIVE_SA_JSON'));
   const gh = new Releases(env('GITHUB_TOKEN'), env('GITHUB_REPOSITORY'), started + budgetMs);
 
-  const snap = await snapshotDrive(drive, env('ROOT_FOLDER_ID', '1ak8DwNK4UeRQmKLpKhEao-XdyEj0Z8EC'));
+  // Pasta raiz do acervo: variável ROOT_FOLDER_ID do repositório (vazia = "Louvores - SVA").
+  // Acervo novo: "Louvores -  2.0" = 13hNvHx76k32-w9YMA__C_mxcPmWK_G0u. Trocar/voltar é só mudar a variável.
+  const snap = await snapshotDrive(drive, process.env.ROOT_FOLDER_ID || '1ak8DwNK4UeRQmKLpKhEao-XdyEj0Z8EC');
   const tree = buildTree(snap);
   // Correções manuais de nomes: id do arquivo no Drive → { title, artist }
   const overrides = existsSync('sync/title-overrides.json') ? JSON.parse(readFileSync('sync/title-overrides.json', 'utf8')) : {};
@@ -168,8 +170,15 @@ async function main(): Promise<void> {
   // Só apaga assets individuais (nunca releases inteiras) e só um ciclo depois de o catálogo commitado deixar de referenciá-los.
   const toDelete = deletableNow(prev, catalog);
   const deletedOK: string[] = [];
+  // Exclusão automática DESLIGADA por padrão (variável AUTO_DELETE=1 religa). Nada é apagado do GitHub, a não ser
+  // num ciclo rodado à mão com 'allow_mass_delete'. A fila de exclusão continua sendo registrada no catálogo.
+  const manualClean = process.env.ALLOW_MASS_DELETE === '1';
+  const paused = !manualClean && process.env.AUTO_DELETE !== '1';
+  const wouldBlock = massDeletionBlocked(toDelete.length, prev);
   let blocked = false;
-  if (massDeletionBlocked(toDelete.length, prev) && process.env.ALLOW_MASS_DELETE !== '1') {
+  if (paused) {
+    // nada a fazer: só registra
+  } else if (wouldBlock && !manualClean) {
     blocked = true;
   } else {
     for (const url of toDelete) {
@@ -198,6 +207,7 @@ async function main(): Promise<void> {
     `- Já existentes no GitHub: ${skipped}`,
     `- Pendentes para o próximo ciclo: ${notReady.size}`,
     `- Arquivos apagados: ${deletedOK.length}`,
+    ...(paused ? [`- Exclusão automática DESLIGADA: ${toDelete.length} arquivo(s) aguardando limpeza manual (exclusão em massa ${wouldBlock ? 'seria BLOQUEADA' : 'não seria bloqueada'})`] : []),
     `- Apagar no próximo ciclo: ${pending.length}`,
     ...(blocked ? [`- ATENÇÃO: exclusão em massa bloqueada (${toDelete.length} arquivos). Confira o Drive; para liberar, rode manualmente o workflow 'Site' marcando 'allow_mass_delete'.`] : []),
     ...(rateLimited ? ['- Limite de uso do GitHub atingido; o envio continua no próximo ciclo.'] : []),

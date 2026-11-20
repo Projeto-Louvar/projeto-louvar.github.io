@@ -42,6 +42,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TIME_BUDGET_MIN: '300'
           ALLOW_MASS_DELETE: ${{ inputs.allow_mass_delete && '1' || '' }}
+          # Pasta raiz (vazia = "Louvores - SVA") e religar a exclusão automática (1) — variáveis do repositório
+          ROOT_FOLDER_ID: ${{ vars.ROOT_FOLDER_ID }}
+          AUTO_DELETE: ${{ vars.AUTO_DELETE }}
       - name: Gravar catálogo
         if: ${{ !cancelled() }}
         env:
