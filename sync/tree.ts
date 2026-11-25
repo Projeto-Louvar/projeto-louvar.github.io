@@ -1,10 +1,38 @@
 export interface DriveFolder { id: string; name: string; parentId: string | null }
-export interface DriveAudio { id: string; name: string; parentId: string; md5: string; size: number; convert?: boolean }
+// srcId: quando a faixa é um ATALHO do Drive, id do arquivo de verdade (é dele que se baixa e se mede o áudio).
+// O id da faixa continua sendo o do atalho, porque a mesma música pode ter atalhos em várias playlists.
+export interface DriveAudio { id: string; name: string; parentId: string; md5: string; size: number; convert?: boolean; srcId?: string }
+export interface DriveShortcut { id: string; name: string; parentId: string; targetId: string }
 export interface SkippedFile { name: string; parentId: string; mimeType: string }
 export interface DriveSnapshot { rootId: string; folders: DriveFolder[]; files: DriveAudio[]; skipped?: string[]; skippedFiles?: SkippedFile[] }
 import { BONUS_PATTERN } from '../shared/bonus';
 
+// Nome de subpasta que não diz nada sozinho ("Vol. 02", "Volume 3", "Parte 1", "CD 2", "Disco 1")
+const GENERIC_PART = /^\s*(vol(ume)?|parte|cd|disco)\.?\s*\d+\s*$/i;
+
 export interface TreeCollection { id: string; name: string; parentId: string | null; childIds: string[]; fileIds: string[] }
+
+/**
+ * Transforma atalhos de áudio em faixas: cada atalho vira uma faixa com o id do atalho e o md5/tamanho do
+ * arquivo de destino (srcId). Atalho cujo destino não é áudio conhecido volta em `unresolved`.
+ * `outside` traz destinos que estão fora da pasta raiz (buscados à parte pelo chamador).
+ */
+export function resolveShortcuts(
+  files: DriveAudio[],
+  shortcuts: DriveShortcut[],
+  outside: Map<string, DriveAudio> = new Map(),
+): { tracks: DriveAudio[]; unresolved: DriveShortcut[] } {
+  const byId = new Map(files.map((f) => [f.id, f]));
+  const tracks: DriveAudio[] = [];
+  const unresolved: DriveShortcut[] = [];
+  for (const s of shortcuts) {
+    const target = byId.get(s.targetId) ?? outside.get(s.targetId);
+    if (!target) { unresolved.push(s); continue; }
+    const src = target.srcId ?? target.id;
+    tracks.push({ id: s.id, name: s.name, parentId: s.parentId, md5: target.md5, size: target.size, srcId: src, ...(target.convert ? { convert: true } : {}) });
+  }
+  return { tracks, unresolved };
+}
 
 export function compareNames(a: string, b: string): number {
   return a.localeCompare(b, 'pt-BR', { numeric: true, sensitivity: 'base' });
@@ -46,6 +74,8 @@ export function buildTree(snap: DriveSnapshot): TreeCollection[] {
       out.splice(at, 1);
       const only = out.find((c) => c.id === node.childIds[0])!;
       only.parentId = parentId;
+      // "Anos 90 > Vol. 02" (os outros volumes vazios): fica "Anos 90", não um "Vol. 02" solto
+      if (GENERIC_PART.test(only.name)) only.name = folder.name;
       return [only.id];
     }
     return [id];

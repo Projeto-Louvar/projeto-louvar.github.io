@@ -82,6 +82,26 @@ describe('pastas bônus e diagnóstico do Drive', () => {
     expect(buildTree(s).map((c) => c.name)).toEqual(['Louvores', 'Lançamentos 2027', 'Março']);
   });
 
+  it('único volume com músicas herda o nome da pasta de cima', () => {
+    const t = buildTree({
+      rootId: 'R',
+      folders: [
+        { id: 'R', name: 'Louvores', parentId: null },
+        { id: 'A', name: 'Anos 90', parentId: 'R' },
+        { id: 'A1', name: 'Vol. 01', parentId: 'A' },
+        { id: 'A2', name: 'Vol. 02', parentId: 'A' },
+        { id: 'C', name: 'Cantores', parentId: 'R' },
+        { id: 'C1', name: 'Cassiane', parentId: 'C' },
+      ],
+      files: [
+        { id: 'f1', name: 'a.mp3', parentId: 'A2', md5: 'm1', size: 1 },
+        { id: 'f2', name: 'b.mp3', parentId: 'C1', md5: 'm2', size: 1 },
+      ],
+    });
+    expect(t.map((c) => c.name)).toEqual(['Louvores', 'Anos 90', 'Cassiane']);
+    expect(t.find((c) => c.name === 'Anos 90')!.id).toBe('A2');
+  });
+
   it('relatório mostra pastas que não aparecem, tipos ignorados e pastas bônus', () => {
     const r = driveReport(s).join('\n');
     expect(r).toContain('.mp4 (1)');

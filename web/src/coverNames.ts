@@ -38,6 +38,14 @@ export const COVER_BY_NAME: Record<string, string> = {
   'Playbacks': 'Gospel 01',
   'Remixes': 'Gospel 05',
   'Ao Vivo': 'Louvor & Adoração',
+  // nomes como estão hoje no Drive
+  'Adoração e Worship': 'Worship Brasil',
+  'Gospel Black': 'Grupo VP',
+  'Rock Gospel': 'Gospel Atual',
+  'Corais e Quartetos': 'Arautos do Rei',
+  'Hinos Clássicos': 'Hinos da Harpa e Louvores Antigos',
+  'Em Espanhol': 'Gospel 04',
+  'Internacional': 'Gospel Hits Internacionais 01',
   // Louvores › Para Cada Momento
   'Para Cada Momento': 'Biblioteca Organizada por Momento',
   'Adoração Profunda': '5. Adoração profunda',
@@ -50,6 +58,7 @@ export const COVER_BY_NAME: Record<string, string> = {
   // Para as Crianças
   'Para as Crianças': 'Bônus 1 - Hinos Infantis',
   'Hinos Infantis': '8. Hinos infantis',
+  'Artistas': 'Bônus 1 - Hinos Infantis',
   'Cantar e Dançar': 'Gospel Animadas Antigas',
   'Histórias da Bíblia': 'Grupo Nova Dimensão',
   'Hora de Dormir': 'Gospel 06',
